@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 
-const GAS_URL = process.env.NEXT_PUBLIC_NEW_GAS_URL || "";
+function getGasUrl() {
+  return process.env.GAS_URL || process.env.NEXT_PUBLIC_NEW_GAS_URL || process.env.NEXT_PUBLIC_GAS_URL || "";
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
+  const GAS_URL = getGasUrl();
   
   try {
-    if (!GAS_URL) throw new Error("GAS_URL is not defined in environment variables");
+    if (!GAS_URL) {
+      console.error("Environment variables checked: GAS_URL, NEXT_PUBLIC_NEW_GAS_URL, NEXT_PUBLIC_GAS_URL");
+      throw new Error("GAS_URL is not defined in environment variables (checked 3 variants)");
+    }
 
     const gasUrlWithParams = `${GAS_URL}?${searchParams.toString()}`;
     const res = await fetch(gasUrlWithParams, { 
@@ -32,8 +38,13 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const GAS_URL = getGasUrl();
+  
   try {
-    if (!GAS_URL) throw new Error("GAS_URL is not defined in environment variables");
+    if (!GAS_URL) {
+      console.error("Environment variables checked: GAS_URL, NEXT_PUBLIC_NEW_GAS_URL, NEXT_PUBLIC_GAS_URL");
+      throw new Error("GAS_URL is not defined in environment variables (checked 3 variants)");
+    }
 
     const contentType = req.headers.get("content-type") || "";
     let body;
