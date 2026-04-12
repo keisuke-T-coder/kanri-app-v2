@@ -270,7 +270,7 @@ const TimelineCanvas = ({ targetDateStr, schedules, setSchedules, openDetail, ha
           const style = staffStyles[staff];
           return (
             <div key={staff} 
-                 className="flex-1 border-r border-gray-50 relative min-w-[50px] hover:bg-gray-50/50 transition-colors"
+                 className="flex-1 border-r border-gray-50 relative min-w-[60px] md:min-w-[100px] hover:bg-gray-50/50 transition-colors"
                  onClick={(e) => {
                    if (isDragging || isActuallyDragging || isPressing || dragFinishedRef.current) return;
                    if (e.target !== e.currentTarget) return;
@@ -773,7 +773,7 @@ function WhiteboardContent() {
 
       {/* タイムライン表示エリア */}
       <div className="w-full max-w-[1240px] overflow-x-auto bg-white shadow-sm [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-orange-200 [&::-webkit-scrollbar-track]:bg-gray-50">
-        <div className="min-w-[800px] flex flex-col">
+        <div className="min-w-[450px] md:min-w-[800px] flex flex-col">
           {/* スタッフヘッダー */}
           <div className="flex w-full sticky top-0 z-40 bg-white border-b border-gray-100 pt-2">
             <div className="w-[36px] shrink-0"></div>
