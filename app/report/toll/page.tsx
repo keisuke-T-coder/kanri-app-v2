@@ -40,14 +40,12 @@ function TollList() {
   const initialWorker = searchParams.get('worker') || ""; 
 
   const [currentWorker, setCurrentWorker] = useState(initialWorker);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState("");
 
   const [allData, setAllData] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -56,7 +54,10 @@ function TollList() {
       const res = await fetch(`${GAS_URL}?worker=${encodeURIComponent(currentWorker)}`);
       if (!res.ok) throw new Error("通信エラー");
       const json = await res.json();
-      setAllData(Array.isArray(json) ? json : []);
+      
+      // GASの応答が { success: true, data: [...] } の形式であることを考慮
+      const reports = (json && Array.isArray(json.data)) ? json.data : (Array.isArray(json) ? json : []);
+      setAllData(reports);
     } catch (err) {
       setError("データの取得に失敗しました。");
     } finally {
@@ -65,6 +66,9 @@ function TollList() {
   }, [currentWorker]);
 
   useEffect(() => {
+    setIsMounted(true);
+    const d = new Date();
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     fetchData();
   }, [fetchData]);
 
@@ -100,6 +104,8 @@ function TollList() {
 
   const totalCount = filteredData.length;
   const selectedMonthDisplay = selectedMonth.replace('-', '年') + '月';
+
+  if (!isMounted) return null;
 
   return (
     <div className="flex flex-col items-center w-full relative">

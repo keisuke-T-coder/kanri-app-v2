@@ -62,10 +62,7 @@ function HistoryList() {
 
   const [currentWorker, setCurrentWorker] = useState(initialWorker);
   
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState("");
 
   const monthOptions = React.useMemo(() => {
     const options = [{ value: "all", label: "全期間 (過去すべて)" }];
@@ -84,6 +81,8 @@ function HistoryList() {
   const [allData, setAllData] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
+  const [myIdentify, setMyIdentify] = useState("");
 
   const [expandedDate, setExpandedDate] = useState<string | null>(null); 
   const [expandedItemKey, setExpandedItemKey] = useState<string | null>(null); 
@@ -105,7 +104,9 @@ function HistoryList() {
       if (json && json.success === false) {
         throw new Error(json.error || "通信エラー");
       }
-      setAllData(Array.isArray(json) ? json : []);
+      // GASの応答が { success: true, data: [...] } の形式であることを考慮
+      setAllData((json && Array.isArray(json.data)) ? json.data : (Array.isArray(json) ? json : []));
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : "データの取得に失敗しました。";
       setError(msg);
@@ -115,6 +116,11 @@ function HistoryList() {
   }, [currentWorker]);
 
   useEffect(() => {
+    setIsMounted(true);
+    const d = new Date();
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const saved = localStorage.getItem('selectedWorker');
+    if (saved) setMyIdentify(saved);
     fetchData();
   }, [fetchData]);
 
@@ -295,6 +301,8 @@ function HistoryList() {
   const inputBaseClass = "w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-800 focus:outline-none focus:border-[#eaaa43] focus:ring-1 focus:ring-[#eaaa43] transition-all appearance-none";
   const labelClass = "block text-xs font-bold text-gray-600 mb-1.5 ml-1";
   const selectWrapperClass = "relative after:content-['▼'] after:text-gray-400 after:text-[10px] after:absolute after:right-4 after:top-1/2 after:-translate-y-1/2 after:pointer-events-none";
+
+  if (!isMounted) return null;
 
   return (
     <div className="flex flex-col items-center w-full relative">

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 function getGasUrl() {
   const url = process.env.GAS_URL || process.env.NEXT_PUBLIC_NEW_GAS_URL || process.env.NEXT_PUBLIC_GAS_URL || "";
-  console.log("DEBUG: Target GAS_URL identified:", url ? "URL exists (length: " + url.length + ")" : "URL IS EMPTY");
   return url;
 }
 
@@ -10,15 +9,17 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const GAS_URL = getGasUrl();
   
+  console.log(`\n--- GAS PROXY GET START ---`);
+  console.log(`URL: ${GAS_URL}`);
+  console.log(`Params: ${searchParams.toString()}`);
+  
   try {
     if (!GAS_URL) {
-      console.error("DEBUG ERROR: No GAS_URL found in process.env. (Keys checked: GAS_URL, NEXT_PUBLIC_NEW_GAS_URL, NEXT_PUBLIC_GAS_URL)");
-      throw new Error("GAS_URL is not defined in environment variables (checked 3 variants)");
+      console.error("DEBUG ERROR: No GAS_URL found in environment variables.");
+      throw new Error("GAS_URL is not defined in environment variables");
     }
 
     const gasUrlWithParams = `${GAS_URL}?${searchParams.toString()}`;
-    console.log("DEBUG: Fetching from GAS (GET):", gasUrlWithParams.substring(0, 100) + "...");
-
     const res = await fetch(gasUrlWithParams, { 
       cache: "no-store", 
       headers: { 'Accept': 'application/json' }
@@ -26,28 +27,32 @@ export async function GET(req: Request) {
     
     if (!res.ok) {
         const errText = await res.text();
-        console.error("DEBUG ERROR: GAS responded with status", res.status, "Body:", errText);
+        console.error(`GAS responded with status ${res.status}. Body: ${errText}`);
         throw new Error(`GAS returned status ${res.status}`);
     }
 
     const text = await res.text();
+    console.log(`RAW GAS RESPONSE (length: ${text.length}): ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`);
+    
     let data;
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.error("DEBUG ERROR: Failed to parse GAS response as JSON. Body snippet:", text.substring(0, 200));
-      throw new Error(`GASからの応答がJSONではありませんでした。 (内容: ${text.substring(0, 100)}...)`);
+      console.error("Failed to parse GAS response as JSON.");
+      throw new Error(`GASからの応答がJSONではありませんでした。`);
     }
 
+    console.log(`--- GAS PROXY GET END ---\n`);
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("GAS Proxy GET Critical Error:", error.message, error.stack);
+    console.error("GAS Proxy GET Critical Error:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   const GAS_URL = getGasUrl();
+  console.log(`\n--- GAS PROXY POST START ---`);
   
   try {
     if (!GAS_URL) throw new Error("GAS_URL is not defined in environment variables");
@@ -64,7 +69,8 @@ export async function POST(req: Request) {
       body = dataStr ? JSON.parse(dataStr) : {};
     }
 
-    console.log("DEBUG: Posting to GAS (POST). Body type:", contentType);
+    console.log(`Payload Action: ${body.action}`);
+    console.log(`Payload Data: ${JSON.stringify(body).substring(0, 200)}...`);
 
     const res = await fetch(GAS_URL, {
         method: "POST",
@@ -76,18 +82,21 @@ export async function POST(req: Request) {
     });
     
     const text = await res.text();
+    console.log(`RAW GAS RESPONSE: ${text.substring(0, 500)}`);
+    
     let data;
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.error("DEBUG ERROR: Failed to parse GAS POST response as JSON. Body:", text.substring(0, 200));
-      throw new Error(`GASからの応答がJSONではありませんでした。 (内容: ${text.substring(0, 100)}...)`);
+      throw new Error(`GASからの応答がJSONではありませんでした。`);
     }
 
     if (!res.ok) throw new Error(data.error || "Failed to post to GAS");
+    console.log(`--- GAS PROXY POST END ---\n`);
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("GAS Proxy POST Critical Error:", error.message, error.stack);
+    console.error("GAS Proxy POST Critical Error:", error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

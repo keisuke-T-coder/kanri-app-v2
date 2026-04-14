@@ -57,7 +57,9 @@ function ReportList() {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [myIdentify, setMyIdentify] = useState("");
 
   // --- 編集モード用のステート ---
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -79,11 +81,10 @@ function ReportList() {
       const res = await fetch(`${GAS_URL}?type=today&worker=${encodeURIComponent(currentWorker)}&date=${targetDate}`, { cache: 'no-store' });
       if (!res.ok) throw new Error("通信エラー");
       const json = await res.json();
-      if (json && json.success === false) {
-        throw new Error(json.error || "通信エラー");
-      }
       
-      const dataArray = Array.isArray(json) ? json : [];
+      // GASの応答が { success: true, data: [...] } の形式であることを考慮
+      const dataArray = (json && Array.isArray(json.data)) ? json.data : (Array.isArray(json) ? json : []);
+
       const sortedData = dataArray.sort((a: any, b: any) => {
         if (!a.start_time || !b.start_time) return 0;
         return String(a.start_time) > String(b.start_time) ? 1 : -1;
@@ -99,6 +100,9 @@ function ReportList() {
   }, [currentWorker]);
 
   useEffect(() => {
+    setIsMounted(true);
+    const saved = localStorage.getItem('selectedWorker');
+    if (saved) setMyIdentify(saved);
     fetchData();
   }, [fetchData]);
 
@@ -248,6 +252,8 @@ function ReportList() {
   const inputBaseClass = "w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-800 focus:outline-none focus:border-[#eaaa43] focus:ring-1 focus:ring-[#eaaa43] transition-all appearance-none";
   const labelClass = "block text-xs font-bold text-gray-600 mb-1.5 ml-1";
   const selectWrapperClass = "relative after:content-['▼'] after:text-gray-400 after:text-[10px] after:absolute after:right-4 after:top-1/2 after:-translate-y-1/2 after:pointer-events-none";
+
+  if (!isMounted) return null;
 
   return (
     <div className="flex flex-col items-center w-full relative">

@@ -106,7 +106,7 @@ const NoticeBanner = ({ targetDateStr, notices, currentUser, deleteNotice, toggl
 };
 
 // --- サブコンポーネント: タイムライン本体 ---
-const TimelineCanvas = ({ targetDateStr, schedules, setSchedules, openDetail, handleCanvasClick, fetchData, isZoomed, dynamicHourHeight, dynamicMinBlock }: any) => {
+const TimelineCanvas = ({ targetDateStr, schedules, setSchedules, openDetail, handleCanvasClick, fetchData, isZoomed, dynamicHourHeight, dynamicMinBlock, currentUser }: any) => {
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
   const daySchedules = schedules.filter((s: any) => s.date === targetDateStr);
   
@@ -137,6 +137,12 @@ const TimelineCanvas = ({ targetDateStr, schedules, setSchedules, openDetail, ha
     setDraggedSchedule(schedule);
     setDragOffsetY(offsetY);
     setDragCurrentTop(rect.top - (e.currentTarget.parentElement?.getBoundingClientRect().top || 0));
+    if (currentUser && currentUser !== schedule.assignee) {
+      // 他人の予定は動かせない
+      setIsPressing(false);
+      return;
+    }
+
     setDragStartTime(schedule.start_time);
     setDragEndTime(schedule.end_time);
 
@@ -345,7 +351,7 @@ const TimelineCanvas = ({ targetDateStr, schedules, setSchedules, openDetail, ha
 function WhiteboardContent() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [currentUser, setCurrentUser] = useState("");
   
@@ -375,7 +381,8 @@ function WhiteboardContent() {
 
   useEffect(() => {
     setMounted(true);
-    const savedWorker = localStorage.getItem('savedWorker');
+    setCurrentDate(new Date());
+    const savedWorker = localStorage.getItem('selectedWorker');
     if (savedWorker && assignees.includes(savedWorker)) setCurrentUser(savedWorker);
     fetchData();
   }, []);
@@ -393,13 +400,19 @@ function WhiteboardContent() {
         throw new Error(data.error || "予定データの取得に失敗しました");
       }
 
+      // GASの応答が { success: true, data: [...] } の形式であることを考慮
+      const rawSchedules = (data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+
       let noticesData = [];
       try { 
-        noticesData = await noticesRes.json();
+        const nJson = await noticesRes.json();
+        // お知らせも同様にラップされている可能性を考慮
+        noticesData = (nJson && Array.isArray(nJson.data)) ? nJson.data : (Array.isArray(nJson) ? nJson : []);
       } catch(e) { console.error("お知らせパースエラー", e); }
 
       // データ解析の強化: 日報データ（タグなし）でも表示できるように調整
-      const parsedSchedules = (Array.isArray(data) ? data : []).map((row: any) => {
+      const parsedSchedules = rawSchedules.map((row: any) => {
+
         // キーワードがない場合、エリアと訪問先を場所として採用
         let locDetail = row.area && row.destination ? `${row.area} / ${row.destination}` : (row.area || row.destination || "(未入力)"); 
         let wItem = (row.item === '-' || row.item === '(-----)' || !row.item) ? "未定" : (row.item || "未定"); 
@@ -478,6 +491,39 @@ function WhiteboardContent() {
     }
   };
 
+  // --- 依頼当番の設定 ---
+  const handleSetDuty = async (staffName: string) => {
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const targetDateStr = fmt(new Date(currentDate));
+
+    // 同じ日の既存の当番設定を「完全に」排除
+    const otherNotices = notices.filter(n => {
+      const nDate = new Date(n.date);
+      if (isNaN(nDate.getTime())) return true;
+      
+      const isSameDay = fmt(nDate) === targetDateStr;
+      // 「当番設定」という単語が含まれている場合は削除対象
+      const isDutyNotice = n.text.includes('【当番設定】');
+      
+      return !(isSameDay && isDutyNotice);
+    });
+    
+    // 新しい当番設定を追加
+    const newDuty = {
+      id: `duty-${Date.now()}`,
+      date: targetDateStr,
+      author: 'SYSTEM',
+      text: `【当番設定】: ${staffName.trim()}`,
+      confirmedBy: [],
+      isActive: true,
+      isUrgent: false
+    };
+    
+    const updated = [newDuty, ...otherNotices];
+    setNotices(updated);
+    await syncNoticesToGAS(updated);
+  };
+
   const syncNoticesToGAS = async (updatedNotices: any[]) => {
     try {
       const payloadNotices = updatedNotices.map(n => ({
@@ -498,8 +544,8 @@ function WhiteboardContent() {
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const user = e.target.value;
     setCurrentUser(user);
-    if (user) localStorage.setItem('savedWorker', user);
-    else localStorage.removeItem('savedWorker');
+    if (user) localStorage.setItem('selectedWorker', user);
+    else localStorage.removeItem('selectedWorker');
   };
 
   const addDays = (days: number) => {
@@ -518,6 +564,8 @@ function WhiteboardContent() {
     }
     return dates;
   };
+
+  if (!mounted || !currentDate) return null;
 
   const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
@@ -593,6 +641,10 @@ function WhiteboardContent() {
   };
 
   const openEditForm = () => {
+    if (currentUser !== selectedSchedule.assignee) {
+      alert("※ 他の担当者の予定は編集できません。");
+      return;
+    }
     setIsAbsenceMode(selectedSchedule.isAbsence);
     const updatedForm = { ...formData, ...selectedSchedule };
     setFormData(updatedForm);
@@ -601,6 +653,10 @@ function WhiteboardContent() {
   };
 
   const handleDelete = async () => {
+    if (currentUser !== selectedSchedule.assignee) {
+      alert("※ 他の担当者の予定は削除できません。");
+      return;
+    }
     if (!confirm("本当に削除しますか？")) return;
     setIsDetailOpen(false);
     setIsLoading(true);
@@ -775,13 +831,38 @@ function WhiteboardContent() {
       <div className="w-full max-w-[1240px] overflow-x-auto bg-white shadow-sm [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-orange-200 [&::-webkit-scrollbar-track]:bg-gray-50">
         <div className="min-w-[450px] md:min-w-[800px] flex flex-col">
           {/* スタッフヘッダー */}
-          <div className="flex w-full sticky top-0 z-40 bg-white border-b border-gray-100 pt-2">
+          <div className="flex w-full sticky top-0 z-40 bg-white border-b border-gray-100 pt-7 pb-1">
             <div className="w-[36px] shrink-0"></div>
-            {assignees.map(staff => (
-              <div key={staff} className={`flex-1 flex justify-center py-2 px-1 border-r border-gray-50 last:border-r-0 ${staffStyles[staff].headerBg} rounded-t-xl mx-0.5 font-black text-xs tracking-widest`}>
-                {staff}
-              </div>
-            ))}
+            {assignees.map(staff => {
+              const isDuty = notices.some(n => {
+                const nDate = new Date(n.date);
+                const tDate = new Date(currentDate);
+                if (isNaN(nDate.getTime())) return false;
+                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                // キーワードと名前の両方が含まれているか判定
+                return fmt(nDate) === fmt(tDate) && n.text.includes('【当番設定】') && n.text.includes(staff);
+              });
+              return (
+                <div 
+                  key={staff} 
+                  onClick={() => {
+                    if (confirm(`${staff}さんを今日の「依頼当番」に変更しますか？`)) {
+                      handleSetDuty(staff);
+                    }
+                  }}
+                  className={`flex-1 flex flex-col items-center justify-center py-4 px-1 border-r border-gray-50 last:border-r-0 ${staffStyles[staff].headerBg} rounded-t-xl mx-0.5 font-black text-xs tracking-widest cursor-pointer hover:opacity-80 active:scale-95 transition-all group relative`}
+                >
+                  {isDuty && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-50">
+                      <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap border border-white/30 animate-pulse">
+                         <span className="text-[10px]">🚨</span> 依頼当番
+                      </span>
+                    </div>
+                  )}
+                  {staff}
+                </div>
+              );
+            })}
           </div>
 
           {/* コンテンツ */}
@@ -807,6 +888,7 @@ function WhiteboardContent() {
                   isZoomed={isZoomed} 
                   dynamicHourHeight={dynamicHourHeight} 
                   dynamicMinBlock={dynamicMinBlock} 
+                  currentUser={currentUser}
                 />
               </div>
             )}
@@ -845,8 +927,16 @@ function WhiteboardContent() {
                  </div>
                )}
                <div className="flex gap-3 pt-2">
-                 <button onClick={handleDelete} className="flex-1 bg-red-50 text-red-500 py-3 rounded-xl font-black text-xs border border-red-100 active:scale-95 transition-all">削除する</button>
-                 <button onClick={openEditForm} className="flex-1 bg-[#eaaa43] text-white py-3 rounded-xl font-black text-xs shadow-md active:scale-95 transition-all">編集する</button>
+                 {(currentUser === selectedSchedule.assignee) ? (
+                   <>
+                     <button onClick={handleDelete} className="flex-1 bg-red-50 text-red-500 py-3 rounded-xl font-black text-xs border border-red-100 active:scale-95 transition-all">削除する</button>
+                     <button onClick={openEditForm} className="flex-1 bg-[#eaaa43] text-white py-3 rounded-xl font-black text-xs shadow-md active:scale-95 transition-all">編集する</button>
+                   </>
+                 ) : (
+                   <div className="w-full text-center py-3 bg-gray-100 rounded-xl text-[10px] font-bold text-gray-400">
+                     ※ 他の人の予定は変更できません
+                   </div>
+                 )}
                </div>
             </div>
           </div>

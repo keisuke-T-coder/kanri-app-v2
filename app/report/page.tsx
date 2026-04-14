@@ -45,13 +45,8 @@ function ReportHub() {
   const router = useRouter();
   const activeModal = searchParams.get('modal');
 
-  const [assignee, setAssignee] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('selectedWorker') || "";
-    }
-    return "";
-  });
-  
+  const [assignee, setAssignee] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(1); 
 
   // お知らせの状態管理
@@ -61,28 +56,34 @@ function ReportHub() {
   
   // 管理画面用の状態
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+  const [showDutyAlert, setShowDutyAlert] = useState(false);
 
   const [summaryPeriod, setSummaryPeriod] = useState<'day' | 'month' | 'year'>('month');
   const [allReports, setAllReports] = useState<any[]>([]);
   const [isReportsLoading, setIsReportsLoading] = useState(false);
 
-  // 1. お知らせをGASから取得
+  // 初期化（Hydrationエラー防止）
   useEffect(() => {
+    setIsMounted(true);
+    const saved = localStorage.getItem('selectedWorker');
+    if (saved) setAssignee(saved);
+
     const fetchNotice = async () => {
       try {
         const res = await fetch(`${GAS_URL}?type=notice`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         
-        if (Array.isArray(data)) {
-          const formattedData = data.map(n => ({
-            ...n,
-            confirmedBy: n.confirmedBy ? (typeof n.confirmedBy === 'string' ? n.confirmedBy.split(',').filter(Boolean) : n.confirmedBy) : []
-          }));
-          setNotices(formattedData);
-        }
+        // GASの応答が { success: true, data: [...] } の形式であることを考慮
+        const noticesArr = (data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+
+        const formattedData = noticesArr.map((n: any) => ({
+          ...n,
+          confirmedBy: n.confirmedBy ? (typeof n.confirmedBy === 'string' ? n.confirmedBy.split(',').filter(Boolean) : n.confirmedBy) : []
+        }));
+        setNotices(formattedData);
         
-        const hasActive = Array.isArray(data) ? data.some(n => n.isActive) : data?.isActive;
+        const hasActive = formattedData.some((n: any) => n.isActive);
         if (hasActive) {
           setActiveIndex(0);
         }
@@ -230,35 +231,87 @@ function ReportHub() {
     setEditingNotice(null);
   };
 
-  // 集計計算ロジック (英語キーに対応)
-  const d = new Date();
-  const currentDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  const currentYear = `${d.getFullYear()}`;
+  // 集計計算ロジック (マウント後に計算)
+  const [techSum, setTechSum] = useState(0);
+  const [repairSum, setRepairSum] = useState(0);
+  const [salesSum, setSalesSum] = useState(0);
 
-  let techSum = 0; let repairSum = 0; let salesSum = 0;
+  useEffect(() => {
+    if (!isMounted) return;
 
-  allReports.forEach(item => {
-    if (!item.date) return;
-    const cleanDate = extractDateForInput(item.date);
-    if (!cleanDate) return;
-    let isMatch = false;
-    if (summaryPeriod === 'day') isMatch = cleanDate === currentDay;
-    else if (summaryPeriod === 'month') isMatch = cleanDate.startsWith(currentMonth);
-    else if (summaryPeriod === 'year') isMatch = cleanDate.startsWith(currentYear);
+    const d = new Date();
+    const currentDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const currentYear = `${d.getFullYear()}`;
 
-    if (isMatch) {
-      techSum += Number(item.tech_fee) || 0;
-      repairSum += Number(item.repair_amount) || 0;
-      salesSum += Number(item.sales_amount) || 0;
-    }
-  });
+    let ts = 0, rs = 0, ss = 0;
+    allReports.forEach(item => {
+      if (!item.date) return;
+      const cleanDate = extractDateForInput(item.date);
+      if (!cleanDate) return;
+      let isMatch = false;
+      if (summaryPeriod === 'day') isMatch = cleanDate === currentDay;
+      else if (summaryPeriod === 'month') isMatch = cleanDate.startsWith(currentMonth);
+      else if (summaryPeriod === 'year') isMatch = cleanDate.startsWith(currentYear);
+
+      if (isMatch) {
+        ts += Number(item.tech_fee) || 0;
+        rs += Number(item.repair_amount) || 0;
+        ss += Number(item.sales_amount) || 0;
+      }
+    });
+
+    setTechSum(ts);
+    setRepairSum(rs);
+    setSalesSum(ss);
+  }, [allReports, summaryPeriod, isMounted]);
 
   const totalRev = repairSum + salesSum;
   const repairPercent = totalRev === 0 ? 0 : Math.round((repairSum / totalRev) * 100);
   const salesPercent = totalRev === 0 ? 0 : Math.round((salesSum / totalRev) * 100);
 
   const getQueryString = () => assignee && assignee !== "add" ? `?worker=${assignee}` : "";
+
+  const handleReportSubmitClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // 当番チェック
+    const isDuty = notices.some(n => {
+      // 日付の正規化 (YYYY-MM-DD 形式で比較)
+      const nDate = new Date(n.date);
+      if (isNaN(nDate.getTime())) return false;
+      
+      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayStr = fmt(new Date());
+      const noticeDateStr = fmt(nDate);
+      
+      const isSameDay = noticeDateStr === todayStr;
+      const text = n.text || "";
+      const containsKeyword = text.includes('【当番設定】');
+      
+      // 文字列の一部が含まれているか、または正規表現での抽出を試みる
+      const cleanAssignee = (assignee || "").trim();
+      if (!cleanAssignee) return false;
+
+      // 正規表現で「【当番設定】: 氏名」から氏名を抽出（全角コロン・スペース対応）
+      const dutyPattern = /【当番設定】[:：]\s*(.*)/;
+      const match = text.match(dutyPattern);
+      const extractedName = match ? match[1].trim() : "";
+
+      const containsName = text.includes(cleanAssignee) || extractedName.includes(cleanAssignee) || cleanAssignee.includes(extractedName);
+      
+      return isSameDay && containsKeyword && containsName;
+    });
+    
+    if (isDuty) {
+      setShowDutyAlert(true);
+    } else {
+      router.push(`/report/submit/verify${getQueryString()}`);
+    }
+  };
+
+  // Hydrationエラー防止のため、マウント前は何も表示しない
+  if (!isMounted) return null;
 
   const activeNotices = notices.filter(n => n.isActive);
   const urgentNotices = activeNotices.filter(n => n.isUrgent);
@@ -278,10 +331,13 @@ function ReportHub() {
         </div>
 
         <div className="mt-5 flex justify-between items-center gap-2">
-          <Link href={`/report/submit/verify${getQueryString()}`} className="bg-white border border-[#eaaa43] text-[#eaaa43] font-bold rounded-full px-4 py-2.5 shadow-sm active:scale-95 transition-transform flex items-center text-sm z-20 hover:bg-orange-50">
+          <button 
+            onClick={handleReportSubmitClick}
+            className="bg-white border border-[#eaaa43] text-[#eaaa43] font-bold rounded-full px-4 py-2.5 shadow-sm active:scale-95 transition-transform flex items-center text-sm z-20 hover:bg-orange-50"
+          >
             <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             日報送信
-          </Link>
+          </button>
 
           <div className="bg-white border border-gray-100 rounded-full px-5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center relative w-[160px] z-20">
             <select 
@@ -543,6 +599,56 @@ function ReportHub() {
           <span className="font-black text-[15px] tracking-[0.2em] pt-0.5">ホームに戻る</span>
         </Link>
       </div>
+
+      {/* 🚨 プレミアム依頼当番アラートモーダル */}
+      {showDutyAlert && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-md"></div>
+          
+          <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl relative z-10 animate-bounce-in border-2 border-red-500/20">
+            <div className="bg-red-500 py-8 flex flex-col items-center justify-center relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+               <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-0 animate-pulse">
+                  <span className="text-6xl">🚨</span>
+               </div>
+            </div>
+
+            <div className="p-8 text-center bg-white">
+              <h3 className="text-2xl font-black text-gray-800 mb-4 tracking-tighter leading-tight">
+                あなたは本日の<br/>
+                <span className="text-red-500 underline decoration-red-200 underline-offset-8">依頼確認当番</span>です！
+              </h3>
+              
+              <div className="bg-orange-50 rounded-2xl p-4 mb-8 border border-orange-100">
+                <p className="text-sm text-gray-600 font-bold leading-relaxed">
+                  管理案件や新規依頼の<br/>
+                  確認漏れはありませんか？<br/>
+                  送信前に今一度チェックをお願いします。
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    setShowDutyAlert(false);
+                    router.push(`/report/submit/verify${getQueryString()}`);
+                  }}
+                  className="w-full bg-gray-800 text-white py-4 rounded-[18px] font-black tracking-widest active:scale-95 transition-transform shadow-xl"
+                >
+                  確認しました（次へ）
+                </button>
+                
+                <button 
+                  onClick={() => setShowDutyAlert(false)}
+                  className="w-full bg-white text-gray-400 py-3 rounded-[18px] font-bold text-sm hover:text-gray-600 active:scale-95 transition-all"
+                >
+                  キャンセルして戻る
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
