@@ -275,6 +275,12 @@ function ReportHub() {
   const handleReportSubmitClick = (e: React.MouseEvent) => {
     e.preventDefault();
     
+    // 読み込み中の場合は待機
+    if (isLoadingNotice) {
+      alert("当番情報を確認中です。少々お待ちください...");
+      return;
+    }
+
     // 当番チェック
     const isDuty = notices.some(n => {
       // 日付の正規化 (JSTなどのローカルタイムゾーンに基づいて YYYY-MM-DD 形式で比較)
@@ -338,10 +344,15 @@ function ReportHub() {
         <div className="mt-5 flex justify-between items-center gap-2">
           <button 
             onClick={handleReportSubmitClick}
-            className="bg-white border border-[#eaaa43] text-[#eaaa43] font-bold rounded-full px-4 py-2.5 shadow-sm active:scale-95 transition-transform flex items-center text-sm z-20 hover:bg-orange-50"
+            disabled={isLoadingNotice}
+            className={`font-bold rounded-full px-4 py-2.5 shadow-sm active:scale-95 transition-transform flex items-center text-sm z-20 ${isLoadingNotice ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border border-[#eaaa43] text-[#eaaa43] hover:bg-orange-50'}`}
           >
-            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            日報送信
+            {isLoadingNotice ? (
+              <div className="animate-spin h-4 w-4 border-2 border-[#eaaa43] border-t-transparent rounded-full mr-1.5"></div>
+            ) : (
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            )}
+            {isLoadingNotice ? "確認中..." : "日報送信"}
           </button>
 
           <div className="bg-white border border-gray-100 rounded-full px-5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] flex items-center relative w-[160px] z-20">

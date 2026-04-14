@@ -126,6 +126,11 @@ function SubmitReportContent() {
   });
 
   const handleComplete = () => {
+    // 読み込み中の場合は待機
+    if (isLoading) {
+      alert("データを精査中です。少々お待ちください...");
+      return;
+    }
     // 当番チェック
     const isDuty = notices.some(n => {
       // 日付の正規化 (JSTなどのローカルタイムゾーンに基づいて YYYY-MM-DD 形式で比較)

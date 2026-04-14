@@ -496,16 +496,11 @@ function WhiteboardContent() {
     const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const targetDateStr = fmt(new Date(currentDate));
 
-    // 同じ日の既存の当番設定を「完全に」排除
+    // 日付に関わらず、既存のすべての当番設定を「完全に」排除
     const otherNotices = notices.filter(n => {
-      const nDate = new Date(n.date);
-      if (isNaN(nDate.getTime())) return true;
-      
-      const isSameDay = fmt(nDate) === targetDateStr;
-      // 「当番設定」という単語が含まれている場合は削除対象
-      const isDutyNotice = n.text.includes('【当番設定】');
-      
-      return !(isSameDay && isDutyNotice);
+      // 「当番設定」という単語が含まれている場合は、古いデータや別日のデータも含めてすべて削除対象
+      const isDutyNotice = n.text && n.text.includes('【当番設定】');
+      return !isDutyNotice;
     });
     
     // 新しい当番設定を追加
