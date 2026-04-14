@@ -70,7 +70,7 @@ function ReportHub() {
 
     const fetchNotice = async () => {
       try {
-        const res = await fetch(`${GAS_URL}?type=notice`);
+        const res = await fetch(`${GAS_URL}?type=notice&_t=${Date.now()}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         

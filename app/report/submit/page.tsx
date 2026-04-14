@@ -77,8 +77,8 @@ function SubmitReportContent() {
     const fetchAllReports = async () => {
       try {
         const [res, noticeRes] = await Promise.all([
-          fetch(`${GAS_URL}?worker=${encodeURIComponent(worker)}`),
-          fetch(`${GAS_URL}?type=notice`)
+          fetch(`${GAS_URL}?worker=${encodeURIComponent(worker)}&_t=${Date.now()}`),
+          fetch(`${GAS_URL}?type=notice&_t=${Date.now()}`)
         ]);
 
         if (!res.ok || !noticeRes.ok) throw new Error();
@@ -128,29 +128,35 @@ function SubmitReportContent() {
   const handleComplete = () => {
     // 当番チェック
     const isDuty = notices.some(n => {
-      // 日付の正規化 (YYYY-MM-DD 形式で比較)
-      const nDate = new Date(n.date);
-      if (isNaN(nDate.getTime())) return false;
+      // 日付の正規化 (JSTなどのローカルタイムゾーンに基づいて YYYY-MM-DD 形式で比較)
+      const normalizeDate = (dInput: any) => {
+        const d = new Date(dInput);
+        if (isNaN(d.getTime())) return "";
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
       
-      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const todayStr = fmt(new Date());
-      const noticeDateStr = fmt(nDate);
-      
+      const todayStr = normalizeDate(new Date());
+      const noticeDateStr = normalizeDate(n.date);
       const isSameDay = noticeDateStr === todayStr;
+
       const text = n.text || "";
       const containsKeyword = text.includes('【当番設定】');
       
       const cleanWorker = (worker || "").trim();
-      if (!cleanWorker) return false;
+      if (!cleanWorker || cleanWorker === 'add') return false;
 
-      // 正規表現で「【当番設定】: 氏名」から氏名を抽出（全角コロン・スペース対応）
+      // 「【当番設定】: 名前」から名前部分を抽出（全角・半角コロン、前後の空白に対応）
       const dutyPattern = /【当番設定】[:：]\s*(.*)/;
       const match = text.match(dutyPattern);
       const extractedName = match ? match[1].trim() : "";
 
-      const containsName = text.includes(cleanWorker) || extractedName.includes(cleanWorker) || cleanWorker.includes(extractedName);
+      // 名前が一致するか、またはテキスト内に含まれているか
+      const isNameMatch = 
+        (extractedName && extractedName.includes(cleanWorker)) || 
+        (cleanWorker && extractedName.includes(cleanWorker)) ||
+        text.includes(cleanWorker);
       
-      return isSameDay && containsKeyword && containsName;
+      return isSameDay && containsKeyword && isNameMatch;
     });
 
     if (isDuty) {
