@@ -161,7 +161,7 @@ function SubmitReportContent() {
         (cleanWorker && extractedName.includes(cleanWorker)) ||
         text.includes(cleanWorker);
       
-      return isSameDay && containsKeyword && isNameMatch;
+      return containsKeyword && isNameMatch;
     });
 
     if (isDuty) {

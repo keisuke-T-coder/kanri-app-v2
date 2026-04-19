@@ -102,14 +102,15 @@ function ReportHub() {
       setIsReportsLoading(true);
       try {
         const workerParam = (assignee === "" || assignee === "add") ? "" : assignee;
-        const res = await fetch(`${GAS_URL}?worker=${encodeURIComponent(workerParam)}`);
+        const res = await fetch(`${GAS_URL}?worker=${encodeURIComponent(workerParam)}&_t=${Date.now()}`);
         const data = await res.json();
         
         if (!res.ok || (data && data.success === false)) {
           throw new Error(data.error || "通信エラー");
         }
         
-        setAllReports(Array.isArray(data) ? data : []);
+        // GASの応答が { success: true, data: [...] } の形式であることを考慮
+        setAllReports((data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []));
       } catch (error: any) {
         console.error("日報データの取得に失敗しました", error);
       } finally {
@@ -311,7 +312,7 @@ function ReportHub() {
         (cleanAssignee && extractedName.includes(cleanAssignee)) ||
         text.includes(cleanAssignee);
       
-      return isSameDay && containsKeyword && isNameMatch;
+      return containsKeyword && isNameMatch;
     });
     
     if (isDuty) {

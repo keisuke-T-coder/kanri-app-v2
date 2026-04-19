@@ -830,12 +830,9 @@ function WhiteboardContent() {
             <div className="w-[36px] shrink-0"></div>
             {assignees.map(staff => {
               const isDuty = notices.some(n => {
-                const nDate = new Date(n.date);
-                const tDate = new Date(currentDate);
-                if (isNaN(nDate.getTime())) return false;
-                const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                // キーワードと名前の両方が含まれているか判定
-                return fmt(nDate) === fmt(tDate) && n.text.includes('【当番設定】') && n.text.includes(staff);
+                if (!n.text || !n.text.includes('【当番設定】')) return false;
+                // 日付に関わらず、システム内の最新の当番設定に名前が含まれていればバッジを表示
+                return n.text.includes(staff);
               });
               return (
                 <div 
