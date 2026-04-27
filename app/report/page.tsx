@@ -40,6 +40,15 @@ type Notice = {
   confirmedBy?: string[]; 
 };
 
+// リマインダーのデータ型
+type Reminder = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  enabled: boolean;
+};
+
 function ReportHub() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -47,7 +56,12 @@ function ReportHub() {
 
   const [assignee, setAssignee] = useState("");
   const [isMounted, setIsMounted] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(1); 
+  const [activeIndex, setActiveIndex] = useState(2); 
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+  const [showTodayReminderAlert, setShowTodayReminderAlert] = useState(false);
+  const [activeRemindersForToday, setActiveRemindersForToday] = useState<Reminder[]>([]);
 
   // お知らせの状態管理
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -94,10 +108,27 @@ function ReportHub() {
       }
     };
     fetchNotice();
+
+    // リマインダーの読み込み
+    const savedReminders = localStorage.getItem('userReminders');
+    if (savedReminders) {
+      const parsed = JSON.parse(savedReminders);
+      setReminders(parsed);
+
+      // 当日のリマインダーがあればアラート表示
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayReminders = parsed.filter((r: Reminder) => r.enabled && r.date === todayStr);
+      if (todayReminders.length > 0) {
+        setActiveRemindersForToday(todayReminders);
+        setShowTodayReminderAlert(true);
+      }
+    }
   }, []);
 
   // 2. 日報データをGASから取得
   useEffect(() => {
+    let active = true;
     const fetchReports = async () => {
       setIsReportsLoading(true);
       try {
@@ -109,15 +140,17 @@ function ReportHub() {
           throw new Error(data.error || "通信エラー");
         }
         
+        if (!active) return;
         // GASの応答が { success: true, data: [...] } の形式であることを考慮
         setAllReports((data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []));
       } catch (error: any) {
         console.error("日報データの取得に失敗しました", error);
       } finally {
-        setIsReportsLoading(false);
+        if (active) setIsReportsLoading(false);
       }
     };
     fetchReports();
+    return () => { active = false; };
   }, [assignee]);
 
   const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -140,8 +173,40 @@ function ReportHub() {
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    if (distance > minSwipeDistance && activeIndex < 2) setActiveIndex(prev => prev + 1);
+    if (distance > minSwipeDistance && activeIndex < 3) setActiveIndex(prev => prev + 1);
     if (distance < -minSwipeDistance && activeIndex > 0) setActiveIndex(prev => prev - 1);
+  };
+
+  const saveReminders = (newReminders: Reminder[]) => {
+    setReminders(newReminders);
+    localStorage.setItem('userReminders', JSON.stringify(newReminders));
+  };
+
+  const handleAddReminder = (title: string, date: string, time: string) => {
+    if (editingReminderId) {
+      saveReminders(reminders.map(r => r.id === editingReminderId ? { ...r, title, date, time } : r));
+      setEditingReminderId(null);
+    } else {
+      const newR: Reminder = {
+        id: Math.random().toString(36).substr(2, 9),
+        title,
+        date,
+        time,
+        enabled: true
+      };
+      saveReminders([...reminders, newR]);
+    }
+    setShowReminderForm(false);
+  };
+
+  const toggleReminder = (id: string) => {
+    saveReminders(reminders.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const deleteReminder = (id: string) => {
+    if (confirm("このリマインダーを削除しますか？")) {
+      saveReminders(reminders.filter(r => r.id !== id));
+    }
   };
 
   // お知らせの保存
@@ -248,6 +313,12 @@ function ReportHub() {
     let ts = 0, rs = 0, ss = 0;
     allReports.forEach(item => {
       if (!item.date) return;
+      
+      // 厳密な担当者フィルタを追加 (GAS側の不備をフロントでカバー)
+      if (assignee && assignee !== "" && assignee !== "add") {
+        if (item.worker && item.worker !== assignee) return;
+      }
+
       const cleanDate = extractDateForInput(item.date);
       if (!cleanDate) return;
       let isMatch = false;
@@ -256,9 +327,15 @@ function ReportHub() {
       else if (summaryPeriod === 'year') isMatch = cleanDate.startsWith(currentYear);
 
       if (isMatch) {
-        ts += Number(item.tech_fee) || 0;
-        rs += Number(item.repair_amount) || 0;
-        ss += Number(item.sales_amount) || 0;
+        // カンマ等が含まれる可能性を考慮してクリーニング
+        const cleanNum = (val: any) => {
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') return Number(val.replace(/[^\d.-]/g, '')) || 0;
+          return 0;
+        };
+        ts += cleanNum(item.tech_fee);
+        rs += cleanNum(item.repair_amount);
+        ss += cleanNum(item.sales_amount);
       }
     });
 
@@ -396,9 +473,9 @@ function ReportHub() {
 
       <div className="w-[92%] max-w-md mx-auto mb-6 z-20 relative">
         <div className="overflow-hidden w-full pb-2" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-          <div className="flex transition-transform duration-300 ease-out w-[300%] items-stretch" style={{ transform: `translateX(-${activeIndex * (100 / 3)}%)` }}>
+          <div className="flex transition-transform duration-300 ease-out w-[400%] items-stretch" style={{ transform: `translateX(-${activeIndex * 25}%)` }}>
             
-            <div className="w-1/3 px-1.5 h-64">
+            <div className="w-1/4 px-1.5 h-64">
               <div className="bg-white rounded-[20px] shadow-[0_2px_10_rgba(0,0,0,0.03)] p-4 h-full flex flex-col relative overflow-hidden">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-[#eaaa43] font-black text-sm tracking-widest flex items-center">
@@ -445,7 +522,7 @@ function ReportHub() {
               </div>
             </div>
 
-            <div className="w-1/3 px-1.5 h-64">
+            <div className="w-1/4 px-1.5 h-64">
               <div onClick={() => openModal('todo')} className="bg-white rounded-[20px] shadow-[0_2px_10_rgba(0,0,0,0.03)] p-5 h-full flex flex-col justify-center cursor-pointer active:scale-[0.98] transition-transform">
                  <div className="flex items-center justify-center mb-5 pointer-events-none">
                   <h3 className="text-gray-800 font-black text-base tracking-widest relative inline-block">
@@ -470,7 +547,30 @@ function ReportHub() {
               </div>
             </div>
 
-            <div className="w-1/3 px-1.5 h-64">
+            <div className="w-1/4 px-1.5 h-64">
+              <div onClick={() => openModal('reminders')} className="bg-white rounded-[20px] shadow-[0_2px_10_rgba(0,0,0,0.03)] p-5 h-full flex flex-col justify-center cursor-pointer active:scale-[0.98] transition-transform relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-3">
+                    <span className="text-xl">⏰</span>
+                 </div>
+                 <h3 className="text-gray-800 font-black text-sm tracking-widest mb-4">タスク設定</h3>
+                 <div className="space-y-2 mb-4">
+                    {reminders.filter(r => r.enabled).slice(0, 2).map(r => (
+                      <div key={r.id} className="text-[10px] font-bold text-gray-500 flex items-center gap-2">
+                        <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                        <span className="truncate">{r.title}</span>
+                      </div>
+                    ))}
+                    {reminders.filter(r => r.enabled).length === 0 && (
+                      <p className="text-[10px] text-gray-400 font-bold">有効な予定はありません</p>
+                    )}
+                 </div>
+                 <button className="w-full bg-indigo-50 text-indigo-600 py-2.5 rounded-xl font-black text-[10px] tracking-widest border border-indigo-100">
+                   タスク一覧を開く
+                 </button>
+              </div>
+            </div>
+
+            <div className="w-1/4 px-1.5 h-64">
               <div onClick={(e) => { if ((e.target as HTMLElement).tagName !== 'BUTTON') openModal('summary'); }} className="bg-white rounded-[20px] shadow-[0_2px_10_rgba(0,0,0,0.03)] p-5 h-full flex flex-col justify-center cursor-pointer active:scale-[0.98] transition-transform">
                 <div className="flex items-center justify-between mb-4 pointer-events-none">
                   <h3 className="text-[#eaaa43] font-bold text-sm tracking-widest">集計</h3>
@@ -516,9 +616,10 @@ function ReportHub() {
           <div className="flex gap-1.5 justify-center flex-1">
             <span className={`w-1.5 h-1.5 rounded-full transition-colors ${activeIndex === 0 ? 'bg-[#eaaa43] w-3' : 'bg-gray-200'}`}></span>
             <span className={`w-1.5 h-1.5 rounded-full transition-colors ${activeIndex === 1 ? 'bg-[#eaaa43] w-3' : 'bg-gray-200'}`}></span>
-            <span className={`w-1.5 h-1.5 rounded-full transition-colors ${activeIndex === 2 ? 'bg-[#eaaa43] w-3' : 'bg-gray-200'}`}></span>
+            <span className={`w-1.5 h-1.5 rounded-full transition-colors ${activeIndex === 2 ? 'bg-indigo-500 w-3' : 'bg-gray-200'}`}></span>
+            <span className={`w-1.5 h-1.5 rounded-full transition-colors ${activeIndex === 3 ? 'bg-[#eaaa43] w-3' : 'bg-gray-200'}`}></span>
           </div>
-          <button onClick={() => setActiveIndex(activeIndex + 1)} className={`w-24 text-right tracking-wider ${activeIndex === 2 ? 'opacity-0 pointer-events-none' : ''}`}>次へ &gt;&gt;</button>
+          <button onClick={() => setActiveIndex(activeIndex + 1)} className={`w-24 text-right tracking-wider ${activeIndex === 3 ? 'opacity-0 pointer-events-none' : ''}`}>次へ &gt;&gt;</button>
         </div>
       </div>
 
@@ -532,6 +633,7 @@ function ReportHub() {
             <h2 className="text-[#eaaa43] font-black tracking-widest text-base">
               {activeModal === 'notice_view' && 'お知らせ一覧'}
               {activeModal === 'notice_manage' && 'お知らせ管理'}
+              {activeModal === 'reminders' && 'リマインダー設定'}
               {activeModal === 'todo' && 'たったできること'}
               {activeModal === 'summary' && '集計詳細'}
             </h2>
@@ -539,6 +641,7 @@ function ReportHub() {
           </div>
 
           <div className="p-4 max-w-md mx-auto w-full pb-20">
+
             {activeModal === 'notice_view' && (
               <div className="space-y-4">
                 {activeNotices.map(notice => {
@@ -571,6 +674,14 @@ function ReportHub() {
                     </div>
                   );
                 })}
+                
+                <button 
+                  onClick={closeModal}
+                  className="w-full mt-8 bg-white border-2 border-gray-100 text-gray-400 py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                  戻る
+                </button>
               </div>
             )}
 
@@ -603,10 +714,259 @@ function ReportHub() {
                     <span className="text-xl font-black text-[#d98c77]">¥{salesSum.toLocaleString()}</span>
                   </div>
                 </div>
+
+                <button 
+                  onClick={closeModal}
+                  className="w-full mt-10 bg-gray-800 text-white py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  確認して戻る
+                </button>
               </div>
             )}
             
-            {/* 他のモーダル内容は省略 */}
+            {activeModal === 'reminders' && (
+              <div className="bg-white rounded-[32px] shadow-sm p-6 max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="font-black text-gray-800 text-xl tracking-[0.1em] flex items-center gap-2">
+                       タスク管理
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">登録済みのリマインダー一覧</p>
+                  </div>
+                  {!editingReminderId && (
+                    <button 
+                      onClick={() => setShowReminderForm(!showReminderForm)}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-black text-xs transition-all active:scale-95 shadow-sm ${showReminderForm ? 'bg-gray-100 text-gray-400' : 'bg-gray-800 text-white'}`}
+                    >
+                      {showReminderForm ? (
+                        <>キャンセル</>
+                      ) : (
+                        <>
+                          <span className="text-sm">＋</span>
+                          新規作成
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                
+                {(showReminderForm || editingReminderId) && (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      handleAddReminder(
+                        fd.get('title') as string,
+                        fd.get('date') as string,
+                        fd.get('time') as string
+                      );
+                      e.currentTarget.reset();
+                    }}
+                    className="space-y-4 mb-10 bg-indigo-50/50 p-5 rounded-[24px] border border-indigo-100/50 animate-fade-in"
+                  >
+                     <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-xs font-black text-indigo-600 tracking-widest">{editingReminderId ? '🔧 タスクを編集' : '✨ 新規タスク追加'}</h4>
+                        {editingReminderId && (
+                          <button type="button" onClick={() => {setEditingReminderId(null); setShowReminderForm(false);}} className="text-[10px] font-bold text-gray-400 hover:text-gray-600">キャンセル</button>
+                        )}
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-indigo-400 ml-1 uppercase tracking-widest">項目名</label>
+                        <input name="title" required defaultValue={reminders.find(r => r.id === editingReminderId)?.title || ''} placeholder="例: A案件の見積もり提出" className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm" />
+                     </div>
+                     <div className="flex gap-3">
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-black text-indigo-400 ml-1 uppercase tracking-widest">日付</label>
+                          <input name="date" type="date" required defaultValue={reminders.find(r => r.id === editingReminderId)?.date || ''} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-black text-indigo-400 ml-1 uppercase tracking-widest">時間</label>
+                          <input name="time" type="time" required defaultValue={reminders.find(r => r.id === editingReminderId)?.time || ''} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm" />
+                        </div>
+                     </div>
+                     <button type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm shadow-md active:scale-95 transition-transform mt-2">
+                        {editingReminderId ? '変更を保存する' : 'タスクを登録する'}
+                     </button>
+                  </form>
+                )}
+
+                <div className="space-y-4">
+                  {reminders.length === 0 ? (
+                    <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                      <span className="text-3xl mb-2 block opacity-30">🌿</span>
+                      <p className="text-xs text-gray-400 font-bold">登録されているタスクはありません</p>
+                    </div>
+                  ) : (
+                    reminders.slice().reverse().map(r => {
+                      const deadline = new Date(`${r.date}T${r.time}`);
+                      const now = new Date();
+                      const diffHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+                      const isUrgent = r.enabled && diffHours <= 3 && diffHours > -1;
+
+                      return (
+                        <div key={r.id} className={`group flex items-center justify-between p-5 rounded-2xl border transition-all ${isUrgent ? 'bg-red-50 border-red-200 shadow-sm' : r.enabled ? 'bg-white border-gray-100 shadow-sm' : 'bg-gray-50 border-transparent opacity-50'}`}>
+                          <div className="flex-1 min-w-0 pr-4">
+                            <div className="flex items-center gap-2 mb-1">
+                               <div className={`w-1.5 h-1.5 rounded-full ${isUrgent ? 'bg-red-500 animate-ping' : r.enabled ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                               <p className={`text-sm font-black truncate ${isUrgent ? 'text-red-700' : r.enabled ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
+                                 {isUrgent && <span className="mr-1.5 text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter shadow-sm animate-pulse">⚠️ 急ぎ</span>}
+                                 {r.title}
+                               </p>
+                            </div>
+                            <div className="flex items-center gap-3 ml-3">
+                               <p className={`text-[10px] font-bold flex items-center gap-1 ${isUrgent ? 'text-red-400' : 'text-gray-400'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z"></path></svg>
+                                  {r.date}
+                               </p>
+                               <p className={`text-[10px] font-bold flex items-center gap-1 ${isUrgent ? 'text-red-400' : 'text-gray-400'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                  {r.time}
+                               </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0">
+                            <button onClick={() => { setEditingReminderId(r.id); setShowReminderForm(false); }} className={`transition-colors ${isUrgent ? 'text-red-300 hover:text-red-600' : 'text-gray-300 hover:text-indigo-500'}`}>
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button 
+                              onClick={() => toggleReminder(r.id)}
+                              className={`w-11 h-6 rounded-full relative transition-all duration-300 ${r.enabled ? (isUrgent ? 'bg-red-500' : 'bg-indigo-500') : 'bg-gray-200'}`}
+                            >
+                              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${r.enabled ? 'left-6' : 'left-1'}`}></div>
+                            </button>
+                            <button onClick={() => deleteReminder(r.id)} className="text-gray-200 hover:text-red-500 transition-colors p-1 group-hover:text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button 
+                  onClick={closeModal}
+                  className="w-full mt-12 bg-indigo-600 text-white py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                >
+                  管理を終了して戻る
+                </button>
+              </div>
+            )}
+            
+            {activeModal === 'notice_manage' && (
+              <div className="bg-white rounded-[20px] shadow-sm p-6">
+                <h3 className="font-black text-gray-800 text-lg tracking-widest mb-6">📢 お知らせ作成・編集</h3>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 ml-1">投稿者</label>
+                    <div className="bg-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-500">{editingNotice?.author || assignee}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 ml-1">内容 (3行程度が最適)</label>
+                    <textarea 
+                      value={editingNotice?.text || ''} 
+                      onChange={(e) => setEditingNotice(prev => prev ? {...prev, text: e.target.value} : null)}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[#eaaa43] min-h-[120px]"
+                      placeholder="お知らせ内容を入力..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-4 py-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={editingNotice?.isUrgent || false} 
+                        onChange={(e) => setEditingNotice(prev => prev ? {...prev, isUrgent: e.target.checked} : null)}
+                        className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-500"
+                      />
+                      <span className="text-xs font-black text-red-500">🚨 至急フラグ</span>
+                    </label>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button 
+                      onClick={() => setEditingNotice(null)}
+                      className="flex-1 bg-gray-100 text-gray-500 py-3.5 rounded-xl font-black text-xs active:scale-95 transition-transform"
+                    >
+                      キャンセル
+                    </button>
+                    <button 
+                      onClick={() => editingNotice && handleSaveNoticesToGAS([...notices.filter(n => n.id !== editingNotice.id), editingNotice])}
+                      disabled={isSavingNotice || !editingNotice?.text}
+                      className="flex-[2] bg-gray-800 text-white py-3.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {isSavingNotice ? '保存中...' : (notices.find(n => n.id === editingNotice?.id) ? '更新する' : '投稿する')}
+                    </button>
+                  </div>
+
+                  {notices.length > 0 && (
+                    <div className="mt-10 border-t border-gray-100 pt-8">
+                      <h4 className="text-[10px] font-black text-gray-400 tracking-[0.2em] mb-4 uppercase">過去の投稿履歴</h4>
+                      <div className="space-y-3">
+                        {notices.slice().reverse().map(n => (
+                          <div key={n.id} className="bg-gray-50 rounded-xl p-4 flex justify-between items-start">
+                            <div className="flex-1 pr-4">
+                              <div className="flex items-center gap-2 mb-1">
+                                {n.isUrgent && <span className="text-[8px] font-black text-red-500">🚨</span>}
+                                <span className="text-[10px] font-black text-gray-800">{n.author}</span>
+                                <span className="text-[9px] text-gray-400 font-bold">{n.date}</span>
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-600 line-clamp-1">{n.text}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => setEditingNotice(n)} className="text-gray-400 hover:text-[#eaaa43] transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                              <button onClick={() => handleDeleteNotice(n.id)} className="text-gray-400 hover:text-red-500 transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeModal === 'todo' && (
+              <div className="bg-white rounded-[20px] shadow-sm p-8">
+                <div className="text-center mb-10">
+                  <h3 className="text-gray-800 font-black text-xl tracking-[0.2em] mb-2 relative inline-block">
+                    たったできること
+                    <div className="absolute -bottom-1 left-0 w-full h-2 bg-[#eaaa43] opacity-30 rounded-full"></div>
+                  </h3>
+                  <p className="text-xs text-gray-400 font-bold">Today's Essential Actions</p>
+                </div>
+                
+                <div className="space-y-6">
+                  {[
+                    { title: "リピート率向上", desc: "前回修理箇所や他箇所に異常がないか、入念な点検をおこないましょう。" },
+                    { title: "緊急時の案内", desc: "夜間や休日、あるいは外出時の故障に備え、連絡先や対処法を明確に伝えましょう。" },
+                    { title: "カメラ名札提示", desc: "訪問時は名札を正面に提示し、安心感を持っていただけるよう丁寧、適切な対応を。" },
+                    { title: "前日在宅確認", desc: "前日に在宅の確認をおこない、訪問日時を再認識していただけるよう努めます。" }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex gap-5 group">
+                      <div className="shrink-0 w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center font-black text-[#eaaa43] text-lg shadow-sm border border-orange-100 group-hover:scale-110 transition-transform">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 pt-1 border-b border-gray-50 pb-6 group-last:border-none">
+                        <h4 className="text-base font-black text-gray-800 mb-1.5">{item.title}</h4>
+                        <p className="text-xs text-gray-500 font-bold leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="my-10 bg-gray-50 rounded-2xl p-6 border border-gray-100 italic">
+                   <p className="text-[10px] text-gray-400 font-bold leading-relaxed">
+                     ※これらは「当たり前」を磨き込み、お客様に感動をお届けするための最小単位のアクションです。
+                   </p>
+                </div>
+
+                <button 
+                  onClick={closeModal}
+                  className="w-full bg-[#eaaa43] text-white py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  確認して戻る
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -616,6 +976,38 @@ function ReportHub() {
           <span className="font-black text-[15px] tracking-[0.2em] pt-0.5">ホームに戻る</span>
         </Link>
       </div>
+
+      {/* ⏰ 当日リマインダーポップアップ (ハブのみ) */}
+      {showTodayReminderAlert && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm"></div>
+          <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl relative z-10 animate-bounce-in">
+            <div className="bg-indigo-600 py-8 flex flex-col items-center justify-center">
+               <span className="text-5xl mb-2">⏰</span>
+               <h3 className="text-white font-black tracking-widest">本日の予定</h3>
+            </div>
+            <div className="p-6">
+               <div className="space-y-3 mb-6">
+                  {activeRemindersForToday.map(r => (
+                    <div key={r.id} className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex items-center gap-3">
+                       <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+                       <div>
+                          <p className="text-xs font-black text-gray-800">{r.title}</p>
+                          <p className="text-[10px] font-bold text-indigo-400">{r.time}</p>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+               <button 
+                onClick={() => setShowTodayReminderAlert(false)}
+                className="w-full bg-gray-800 text-white py-4 rounded-2xl font-black tracking-widest active:scale-95 transition-transform shadow-lg"
+               >
+                 確認しました
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🚨 プレミアム依頼当番アラートモーダル */}
       {showDutyAlert && (

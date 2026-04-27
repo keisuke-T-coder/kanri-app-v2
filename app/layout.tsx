@@ -1,4 +1,5 @@
 import './globals.css';
+import ReminderGlobalBar from './_components/ReminderGlobalBar';
 
 export default function RootLayout({
   children,
@@ -10,7 +11,10 @@ export default function RootLayout({
       <head>
         <script src="https://cdn.tailwindcss.com"></script>
       </head>
-      <body>{children}</body>
+      <body>
+        <ReminderGlobalBar />
+        {children}
+      </body>
     </html>
   );
 }
