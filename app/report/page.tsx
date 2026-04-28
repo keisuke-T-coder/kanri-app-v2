@@ -801,15 +801,15 @@ function ReportHub() {
                       const deadline = new Date(`${r.date}T${r.time}`);
                       const now = new Date();
                       const diffHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-                      const isUrgent = r.enabled && diffHours <= 3 && diffHours > -1;
+                      const isUrgent = r.enabled && diffHours <= 3; // 期限超過後も急ぎ扱いを継続
 
                       return (
                         <div key={r.id} className={`group flex items-center justify-between p-5 rounded-2xl border transition-all ${isUrgent ? 'bg-red-50 border-red-200 shadow-sm' : r.enabled ? 'bg-white border-gray-100 shadow-sm' : 'bg-gray-50 border-transparent opacity-50'}`}>
                           <div className="flex-1 min-w-0 pr-4">
-                            <div className="flex items-center gap-2 mb-1">
-                               <div className={`w-1.5 h-1.5 rounded-full ${isUrgent ? 'bg-red-500 animate-ping' : r.enabled ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
-                               <p className={`text-sm font-black truncate ${isUrgent ? 'text-red-700' : r.enabled ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
-                                 {isUrgent && <span className="mr-1.5 text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter shadow-sm animate-pulse">⚠️ 急ぎ</span>}
+                            <div className="flex items-start gap-2 mb-1.5">
+                               <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isUrgent ? 'bg-red-500 animate-ping' : r.enabled ? 'bg-indigo-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                               <p className={`text-sm font-black break-words leading-relaxed ${isUrgent ? 'text-red-700' : r.enabled ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
+                                 {isUrgent && <span className="mr-1.5 text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter shadow-sm animate-pulse whitespace-nowrap">⚠️ 急ぎ</span>}
                                  {r.title}
                                </p>
                             </div>
@@ -987,13 +987,16 @@ function ReportHub() {
                <h3 className="text-white font-black tracking-widest">本日の予定</h3>
             </div>
             <div className="p-6">
-               <div className="space-y-3 mb-6">
+               <div className="space-y-4 mb-8 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                   {activeRemindersForToday.map(r => (
-                    <div key={r.id} className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex items-center gap-3">
-                       <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
-                       <div>
-                          <p className="text-xs font-black text-gray-800">{r.title}</p>
-                          <p className="text-[10px] font-bold text-indigo-400">{r.time}</p>
+                    <div key={r.id} className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
+                       <span className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 shrink-0"></span>
+                       <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-gray-800 leading-relaxed break-words mb-1">{r.title}</p>
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-indigo-400">
+                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                             {r.time}
+                          </div>
                        </div>
                     </div>
                   ))}

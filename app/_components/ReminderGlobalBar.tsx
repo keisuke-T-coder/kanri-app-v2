@@ -35,7 +35,7 @@ export default function ReminderGlobalBar() {
 
           const diffMs = deadline.getTime() - now.getTime();
           const diffHours = diffMs / (1000 * 60 * 60);
-          return diffHours <= 3 && diffHours > -1;
+          return diffHours <= 3; // 期限切れ（マイナス）になっても表示し続ける
         });
 
         setUrgentCount(urgent.length);
@@ -59,7 +59,7 @@ export default function ReminderGlobalBar() {
       <span className="text-lg animate-bounce">⏰</span>
       <p className="text-[11px] md:text-sm font-black tracking-tight flex items-center gap-1.5">
         <span className="bg-white text-red-600 px-1.5 py-0.5 rounded text-[9px] font-bold">URGENT</span>
-        期限目前のタスクが {urgentCount} 件あります！確認してください
+        期限間近・超過のタスクが {urgentCount} 件あります！確認してください
       </p>
       <div className="w-2 h-2 bg-white rounded-full animate-ping opacity-75"></div>
       <svg className="w-4 h-4 opacity-70 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
