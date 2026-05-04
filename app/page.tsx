@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Wrench } from 'lucide-react';
+import { Wrench, Briefcase } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
@@ -42,6 +42,13 @@ export default function Home() {
         <Link href="/whiteboard" className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.03)] py-10 flex flex-col items-center justify-center active:scale-95 transition-transform border border-transparent hover:border-orange-100">
           <h2 className="text-[1.3rem] font-black text-gray-900 tracking-widest mb-1">ホワイトボード</h2>
           <p className="text-[10px] text-gray-400 font-medium mb-3">Whiteboard</p>
+          <div className="w-[40%] h-[3px] bg-[#eaaa43] rounded-full"></div>
+        </Link>
+
+        {/* 3. 案件管理 */}
+        <Link href="/cases" className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.03)] py-10 flex flex-col items-center justify-center active:scale-95 transition-transform border border-transparent hover:border-orange-100">
+          <h2 className="text-[1.3rem] font-black text-gray-900 tracking-widest mb-1">案件管理</h2>
+          <p className="text-[10px] text-gray-400 font-medium mb-3">Case Management</p>
           <div className="w-[40%] h-[3px] bg-[#eaaa43] rounded-full"></div>
         </Link>
 
