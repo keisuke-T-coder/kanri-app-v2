@@ -1,6 +1,6 @@
 "use client";
 
-import { CLIENT_TABS, ClientId } from "../_types/schema";
+import { ClientId, CLIENT_TABS } from "../_types/schema";
 
 interface ClientTabsProps {
   activeClient: ClientId;
@@ -9,23 +9,28 @@ interface ClientTabsProps {
 
 export function ClientTabs({ activeClient, onChange }: ClientTabsProps) {
   return (
-    <div className="flex w-full overflow-x-auto no-scrollbar glass sticky top-0 z-10 border-b border-black/5 shadow-sm">
-      {CLIENT_TABS.map((tab) => {
-        const isActive = activeClient === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            className={`flex-1 min-w-[80px] py-4 text-sm font-black transition-colors whitespace-nowrap px-4 border-b-2 ${
-              isActive 
-                ? "text-primary border-primary" 
-                : "text-slate-400 border-transparent hover:text-slate-600"
-            }`}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
+    <div className="flex overflow-x-auto no-scrollbar bg-white/50 border-b border-black/[0.03]">
+      <div className="flex px-2 py-2">
+        {CLIENT_TABS.map((tab) => {
+          const isActive = activeClient === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onChange(tab.id)}
+              className={`relative px-6 py-3 text-[11px] font-black transition-all whitespace-nowrap ${
+                isActive 
+                  ? "text-primary" 
+                  : "text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              {tab.label}
+              {isActive && (
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-full animate-in fade-in zoom-in duration-300" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
