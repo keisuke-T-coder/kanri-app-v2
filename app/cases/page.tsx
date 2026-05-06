@@ -12,11 +12,12 @@ import { BottomNavigation } from "./_components/BottomNavigation";
 type SymbolFilter = "all" | "ball" | "circle" | "speaker";
 
 export default function CasesHomePage() {
-  const [activeClient, setActiveClient] = useState<ClientId>("priority");
-  const [statusFilter, setStatusFilter] = useState<Status>("未完了");
-  const [symbolFilter, setSymbolFilter] = useState<SymbolFilter>("ball");
-  
-  const { allCases, loading, error } = useCases();
+  const { 
+    allCases, loading, error, 
+    activeClient, setActiveClient,
+    statusFilter, setStatusFilter,
+    symbolFilter, setSymbolFilter
+  } = useCases();
 
   const items = allCases[activeClient] || [];
   

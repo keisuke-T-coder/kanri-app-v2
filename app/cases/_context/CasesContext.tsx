@@ -1,7 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
-import { CaseItem, CLIENT_TABS, Status } from "../_types/schema";
+import { CaseItem, CLIENT_TABS, Status, ClientId } from "../_types/schema";
+
+type SymbolFilter = "all" | "ball" | "circle" | "speaker";
 
 interface CasesContextType {
   allCases: Record<string, CaseItem[]>;
@@ -9,6 +11,13 @@ interface CasesContextType {
   error: string | null;
   updateCaseStatus: (clientId: string, rowNumber: number, newStatus: Status, completionDate: string) => void;
   updateCaseContent: (clientId: string, rowNumber: number, newContent: string) => void;
+  updateCaseFields: (clientId: string, rowNumber: number, fields: Record<string, string>) => void;
+  activeClient: ClientId;
+  setActiveClient: (id: ClientId) => void;
+  statusFilter: Status;
+  setStatusFilter: (status: Status) => void;
+  symbolFilter: SymbolFilter;
+  setSymbolFilter: (filter: SymbolFilter) => void;
   refreshAll: () => Promise<void>;
 }
 
@@ -25,6 +34,9 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
   const [allCases, setAllCases] = useState<Record<string, CaseItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeClient, setActiveClient] = useState<ClientId>("priority");
+  const [statusFilter, setStatusFilter] = useState<Status>("未完了");
+  const [symbolFilter, setSymbolFilter] = useState<SymbolFilter>("ball");
   const fetchedRef = useRef(false);
 
   const fetchAllData = useCallback(async () => {
@@ -43,6 +55,9 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
           clientId: tab.id,
           rowNumber: row.rowNumber,
           title: row["案件名"] || row["施主名"] || row["物件名"] || "",
+          propertyName: row["物件名"] || "",
+          caseName: row["案件名"] || "",
+          ownerName: row["施主名"] || "",
           address: row["住所"] || "",
           assignee: row["対応者"] || "",
           status: row["ステータス"] as Status || "未完了",
@@ -111,8 +126,35 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const updateCaseFields = useCallback((clientId: string, rowNumber: number, fields: Record<string, string>) => {
+    setAllCases(prev => {
+      const clientCases = prev[clientId] || [];
+      const newClientCases = clientCases.map(c => {
+        if (c.rowNumber === rowNumber) {
+          const updated = { ...c, ...fields };
+          // titleも更新する (物件名/案件名/施主名のいずれかが変わった場合)
+          const newTitle = 
+            updated.caseName || 
+            updated.ownerName || 
+            updated.propertyName || 
+            c.title;
+          return { ...updated, title: newTitle };
+        }
+        return c;
+      });
+      return { ...prev, [clientId]: newClientCases };
+    });
+  }, []);
+
   return (
-    <CasesContext.Provider value={{ allCases, loading, error, updateCaseStatus, updateCaseContent, refreshAll: fetchAllData }}>
+    <CasesContext.Provider value={{ 
+      allCases, loading, error, 
+      activeClient, setActiveClient, 
+      statusFilter, setStatusFilter,
+      symbolFilter, setSymbolFilter,
+      updateCaseStatus, updateCaseContent, updateCaseFields, 
+      refreshAll: fetchAllData 
+    }}>
       {children}
     </CasesContext.Provider>
   );

@@ -17,7 +17,10 @@ export interface CaseItem {
   rowNumber: number;
   
   // Common fields (unified)
-  title: string; // 案件名 or 施主名 or 物件名
+  title: string; // 案件名 or 施主名 or 物件名 (Display title)
+  propertyName?: string; // 物件名
+  caseName?: string;     // 案件名
+  ownerName?: string;    // 施主名
   address: string; // 住所
   assignee: string; // 対応者
   status: Status; // ステータス
