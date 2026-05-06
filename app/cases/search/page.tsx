@@ -8,13 +8,18 @@ import { Search as SearchIcon, X, Filter, Loader2 } from "lucide-react";
 import { ClientId, Status, CLIENT_TABS } from "../_types/schema";
 
 export default function SearchPage() {
-  const { allCases, loading } = useCases();
-  const [query, setQuery] = useState("");
-  const [selectedClient, setSelectedClient] = useState<ClientId | "all">("all");
-  const [selectedStatus, setSelectedStatus] = useState<Status | "all">("all");
+  const { 
+    allCases, loading,
+    searchQuery: query, setSearchQuery: setQuery,
+    searchClient: selectedClient, setSearchClient: setSelectedClient,
+    searchStatus: selectedStatus, setSearchStatus: setSelectedStatus
+  } = useCases();
 
   const filteredCases = useMemo(() => {
-    let results = Object.values(allCases).flat();
+    // priority（最優先）を除外し、各会社のデータのみを合算することで重複を避ける
+    let results = Object.entries(allCases)
+      .filter(([key]) => key !== "priority")
+      .flatMap(([_, cases]) => cases);
 
     if (selectedClient !== "all") {
       results = results.filter((c) => c.clientId === selectedClient);
@@ -24,13 +29,25 @@ export default function SearchPage() {
     }
     if (query.trim()) {
       const q = query.toLowerCase();
-      results = results.filter(
-        (c) =>
+      results = results.filter((c) => {
+        // 主要項目の検索
+        const primaryMatch = 
           c.title.toLowerCase().includes(q) ||
           c.address.toLowerCase().includes(q) ||
           c.assignee.toLowerCase().includes(q) ||
-          (c.content && c.content.toLowerCase().includes(q))
-      );
+          (c.content && c.content.toLowerCase().includes(q));
+        
+        if (primaryMatch) return true;
+
+        // すべての生データ（rawData）を対象にした検索
+        if (c.rawData) {
+          return Object.values(c.rawData).some(val => 
+            String(val).toLowerCase().includes(q)
+          );
+        }
+
+        return false;
+      });
     }
     return results;
   }, [allCases, query, selectedClient, selectedStatus]);

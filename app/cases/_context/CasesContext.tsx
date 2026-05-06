@@ -18,6 +18,12 @@ interface CasesContextType {
   setStatusFilter: (status: Status) => void;
   symbolFilter: SymbolFilter;
   setSymbolFilter: (filter: SymbolFilter) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searchClient: ClientId | "all";
+  setSearchClient: (id: ClientId | "all") => void;
+  searchStatus: Status | "all";
+  setSearchStatus: (status: Status | "all") => void;
   refreshAll: () => Promise<void>;
 }
 
@@ -37,6 +43,9 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
   const [activeClient, setActiveClient] = useState<ClientId>("priority");
   const [statusFilter, setStatusFilter] = useState<Status>("未完了");
   const [symbolFilter, setSymbolFilter] = useState<SymbolFilter>("ball");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchClient, setSearchClient] = useState<ClientId | "all">("all");
+  const [searchStatus, setSearchStatus] = useState<Status | "all">("all");
   const fetchedRef = useRef(false);
 
   const fetchAllData = useCallback(async () => {
@@ -152,6 +161,9 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       activeClient, setActiveClient, 
       statusFilter, setStatusFilter,
       symbolFilter, setSymbolFilter,
+      searchQuery, setSearchQuery,
+      searchClient, setSearchClient,
+      searchStatus, setSearchStatus,
       updateCaseStatus, updateCaseContent, updateCaseFields, 
       refreshAll: fetchAllData 
     }}>
