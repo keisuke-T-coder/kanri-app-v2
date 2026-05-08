@@ -46,7 +46,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
       // 履歴から計算 (使用はマイナス、入荷はプラス)
       const totalChange = mappedHistories
-        .filter(h => h.partId === partId)
+        .filter(h => h.partId.trim() === partId.trim())
         .reduce((sum, h) => {
           if (h.operation === "使用") return sum - h.quantityChange;
           if (h.operation === "入荷") return sum + h.quantityChange;
@@ -73,8 +73,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     if (!isSilent) setRefreshing(true);
     try {
       const [masterRes, historyRes] = await Promise.all([
-        fetch(`/api/gas?sheetName=${encodeURIComponent(INVENTORY_SHEETS.MASTER)}`),
-        fetch(`/api/gas?sheetName=${encodeURIComponent(INVENTORY_SHEETS.HISTORY)}`)
+        fetch(`/api/cases-gas?sheetName=${encodeURIComponent(INVENTORY_SHEETS.MASTER)}`),
+        fetch(`/api/cases-gas?sheetName=${encodeURIComponent(INVENTORY_SHEETS.HISTORY)}`)
       ]);
 
       const masterJson = await masterRes.json();
@@ -104,7 +104,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   // 履歴の追加
   const addHistory = async (history: Partial<StockHistory>) => {
     try {
-      const res = await fetch("/api/gas", {
+      const res = await fetch("/api/cases-gas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

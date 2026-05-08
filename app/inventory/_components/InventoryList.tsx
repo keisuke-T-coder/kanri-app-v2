@@ -18,9 +18,9 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
       // 指定された21項目を優先して抽出
-      return parts.filter(p => TOP_21_PARTS.includes(p.id));
+      return parts.filter(p => TOP_21_PARTS.some(name => name.trim() === p.id.trim()));
     }
-    return parts.filter(p => p.makerName === filter);
+    return parts.filter(p => p.makerName.trim() === filter.trim());
   }, [parts, filter]);
 
   if (loading && parts.length === 0) {
