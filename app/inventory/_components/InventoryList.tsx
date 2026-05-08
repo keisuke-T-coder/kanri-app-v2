@@ -27,10 +27,14 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 正規化して比較
-      return parts.filter(p => 
-        TOP_21_PARTS.some(name => normalize(name) === normalize(p.id))
-      );
+      // 指定された21項目を抽出し、TOP_21_PARTSの順序でソート
+      return parts
+        .filter(p => TOP_21_PARTS.some(name => normalize(name) === normalize(p.id)))
+        .sort((a, b) => {
+          const indexA = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(a.id));
+          const indexB = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(b.id));
+          return indexA - indexB;
+        });
     }
     return parts.filter(p => normalize(p.makerName) === normalize(filter));
   }, [parts, filter]);
