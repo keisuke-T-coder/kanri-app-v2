@@ -27,20 +27,27 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 正規化後の先頭5文字が一致すれば同じ部品とみなす
+      // 相互の部分一致（どちらかがどちらかを含んでいる）で判定
       return parts
-        .filter(p => 
-          TOP_21_PARTS.some(name => 
-            normalize(name).substring(0, 5) === normalize(p.id).substring(0, 5)
-          )
-        )
+        .filter(p => {
+          const normPartId = normalize(p.id);
+          if (normPartId.length < 3) return false; // 誤検知防止のため3文字未満は除外
+          return TOP_21_PARTS.some(name => {
+            const normName = normalize(name);
+            return normPartId.includes(normName) || normName.includes(normPartId);
+          });
+        })
         .sort((a, b) => {
-          const indexA = TOP_21_PARTS.findIndex(name => 
-            normalize(name).substring(0, 5) === normalize(a.id).substring(0, 5)
-          );
-          const indexB = TOP_21_PARTS.findIndex(name => 
-            normalize(name).substring(0, 5) === normalize(b.id).substring(0, 5)
-          );
+          const indexA = TOP_21_PARTS.findIndex(name => {
+            const normName = normalize(name);
+            const normId = normalize(a.id);
+            return normId.includes(normName) || normName.includes(normId);
+          });
+          const indexB = TOP_21_PARTS.findIndex(name => {
+            const normName = normalize(name);
+            const normId = normalize(b.id);
+            return normId.includes(normName) || normName.includes(normId);
+          });
           return indexA - indexB;
         });
     }
