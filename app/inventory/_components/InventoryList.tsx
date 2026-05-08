@@ -103,9 +103,14 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
               >
                 {/* Upper Section: Badges */}
                 <div className="flex justify-between items-start mb-4">
-                  <span className="text-[9px] font-black bg-slate-800 text-white px-3 py-1 rounded-full uppercase tracking-tighter">
-                    {part.makerName}
-                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-black bg-slate-800 text-white px-3 py-1 rounded-full uppercase tracking-tighter self-start">
+                      {part.makerName}
+                    </span>
+                    <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter self-start">
+                      {part.group || "未分類"}
+                    </span>
+                  </div>
                   <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-inner ${status.bg} ${status.border} ${status.color}`}>
                     <StatusIcon className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{status.label}</span>
@@ -122,13 +127,13 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
                 {/* Bottom Section: Stock Info */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100/50">
                   <div className="flex gap-6">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col justify-end">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">初期</span>
                       <span className="text-base font-black text-slate-500">{part.initialStock}</span>
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col justify-end">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">現在</span>
-                      <span className={`text-2xl font-black ${status.color}`}>
+                      <span className={`text-4xl font-black leading-none ${status.color}`}>
                         {part.currentStock}
                       </span>
                     </div>

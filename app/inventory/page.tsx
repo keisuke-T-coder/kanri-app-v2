@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useInventory } from "./_context/InventoryContext";
 import { MAKER_LIST, PartMaster } from "./_types/schema";
-import { RefreshCw, Package, History, PlusCircle, User } from "lucide-react";
+import { RefreshCw, Package, History, PlusCircle, User, Home } from "lucide-react";
 
 import { InventoryList } from "./_components/InventoryList";
 import { UsageHistory } from "./_components/UsageHistory";
@@ -39,9 +40,17 @@ export default function InventoryPage() {
     <div className="flex flex-col min-h-screen">
       {/* 1. Header */}
       <header className="bg-white px-6 py-5 flex items-center justify-between shadow-sm sticky top-0 z-40">
-        <div>
-          <h1 className="text-xl font-black text-slate-800 tracking-tighter">在庫管理</h1>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Inventory Management</p>
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/"
+            className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-all active:scale-90"
+          >
+            <Home className="w-5 h-5 text-slate-500" />
+          </Link>
+          <div>
+            <h1 className="text-xl font-black text-slate-800 tracking-tighter">在庫管理</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Inventory Management</p>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100 shadow-sm">
