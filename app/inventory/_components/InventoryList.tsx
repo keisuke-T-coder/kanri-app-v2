@@ -27,12 +27,20 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 指定された21項目を抽出し、TOP_21_PARTSの順序でソート
+      // 正規化後の先頭5文字が一致すれば同じ部品とみなす
       return parts
-        .filter(p => TOP_21_PARTS.some(name => normalize(name) === normalize(p.id)))
+        .filter(p => 
+          TOP_21_PARTS.some(name => 
+            normalize(name).substring(0, 5) === normalize(p.id).substring(0, 5)
+          )
+        )
         .sort((a, b) => {
-          const indexA = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(a.id));
-          const indexB = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(b.id));
+          const indexA = TOP_21_PARTS.findIndex(name => 
+            normalize(name).substring(0, 5) === normalize(a.id).substring(0, 5)
+          );
+          const indexB = TOP_21_PARTS.findIndex(name => 
+            normalize(name).substring(0, 5) === normalize(b.id).substring(0, 5)
+          );
           return indexA - indexB;
         });
     }
