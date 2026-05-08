@@ -10,13 +10,13 @@ interface CaseCardProps {
 }
 
 export function CaseCard({ item }: CaseCardProps) {
-  const { activeClient } = useCases();
+  const { setSelectedCase } = useCases();
   const statusColor = item.status === "未完了" ? "bg-orange-500" : "bg-green-500";
   
   return (
-    <Link 
-      href={`/cases/detail/${item.clientId}/${item.rowNumber}?from=${activeClient}`}
-      className="block bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-black/[0.02] hover:scale-[1.01] transition-all active:scale-95 group"
+    <button 
+      onClick={() => setSelectedCase(item)}
+      className="w-full text-left block bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-black/[0.02] hover:scale-[1.01] transition-all active:scale-95 group"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 pr-4">
@@ -49,6 +49,6 @@ export function CaseCard({ item }: CaseCardProps) {
           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
-    </Link>
+    </button>
   );
 }

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { CaseItem, CLIENT_TABS, Status, ClientId } from "../_types/schema";
 
 type SymbolFilter = "all" | "ball" | "circle" | "speaker";
+type CasesTab = "list" | "search" | "tools";
 
 interface CasesContextType {
   allCases: Record<string, CaseItem[]>;
@@ -24,10 +25,18 @@ interface CasesContextType {
   setSearchClient: (id: ClientId | "all") => void;
   searchStatus: Status | "all";
   setSearchStatus: (status: Status | "all") => void;
+  activeTab: CasesTab;
+  setActiveTab: (tab: CasesTab) => void;
+  selectedCase: CaseItem | null;
+  setSelectedCase: (item: CaseItem | null) => void;
   refreshAll: () => Promise<void>;
 }
 
 const CasesContext = createContext<CasesContextType | undefined>(undefined);
+
+// グローバルキャッシュ (モジュールの外に置くことでアンマウントされても保持される)
+let globalCasesCache: Record<string, CaseItem[]> | null = null;
+let globalIsFirstFetch = true;
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -37,23 +46,72 @@ const formatDate = (dateStr: string) => {
 };
 
 export function CasesProvider({ children }: { children: React.ReactNode }) {
-  const [allCases, setAllCases] = useState<Record<string, CaseItem[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [allCases, setAllCases] = useState<Record<string, CaseItem[]>>(globalCasesCache || {});
+  const [loading, setLoading] = useState(globalIsFirstFetch);
   const [error, setError] = useState<string | null>(null);
+  
+  // 永続化状態
   const [activeClient, setActiveClient] = useState<ClientId>("priority");
   const [statusFilter, setStatusFilter] = useState<Status>("未完了");
   const [symbolFilter, setSymbolFilter] = useState<SymbolFilter>("ball");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchClient, setSearchClient] = useState<ClientId | "all">("all");
   const [searchStatus, setSearchStatus] = useState<Status | "all">("all");
+  const [activeTab, setActiveTab] = useState<CasesTab>("list");
+  const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+
   const fetchedRef = useRef(false);
+
+  // localStorageからの復元
+  useEffect(() => {
+    const saved = localStorage.getItem("cases_app_state");
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.activeClient) setActiveClient(state.activeClient);
+        if (state.statusFilter) setStatusFilter(state.statusFilter);
+        if (state.symbolFilter) setSymbolFilter(state.symbolFilter);
+        if (state.searchQuery) setSearchQuery(state.searchQuery);
+        if (state.searchClient) setSearchClient(state.searchClient);
+        if (state.searchStatus) setSearchStatus(state.searchStatus);
+        if (state.activeTab) setActiveTab(state.activeTab);
+        if (state.selectedCase) setSelectedCase(state.selectedCase);
+        
+        // データの復元 (非常に大きい場合は注意が必要だが、数千件程度ならlocalStorageで可能)
+        if (state.allCases && Object.keys(state.allCases).length > 0) {
+          globalCasesCache = state.allCases;
+          globalIsFirstFetch = false;
+          setAllCases(state.allCases);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to restore cases state", e);
+      }
+    }
+  }, []);
+
+  // 状態の保存
+  useEffect(() => {
+    const state = { 
+      activeClient, statusFilter, symbolFilter, searchQuery, 
+      searchClient, searchStatus, activeTab, selectedCase,
+      allCases // データも保存
+    };
+    try {
+      localStorage.setItem("cases_app_state", JSON.stringify(state));
+    } catch (e) {
+      // 容量オーバーの場合はデータ抜きで保存
+      console.warn("LocalStorage full, saving without data cache");
+      const minimalState = { activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase };
+      localStorage.setItem("cases_app_state", JSON.stringify(minimalState));
+    }
+  }, [activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase, allCases]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const promises = CLIENT_TABS.filter(t => t.id !== "priority").map(async (tab) => {
-        // V2用に /api/cases-gas を使用
         const res = await fetch(`/api/cases-gas?sheetName=${encodeURIComponent(tab.sheetName)}`);
         if (!res.ok) throw new Error("Failed to fetch " + tab.label);
         const json = await res.json();
@@ -86,12 +144,15 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
         newAllCases[res.id] = res.data;
       });
 
-      // 最優先タブのデータを生成 (🥎, ⭕️, 📢, 📣 がタイトルに含まれるものを全シートから集約)
       const prioritySymbols = ["🥎", "⭕️", "📢", "📣"];
       const allItems = Object.values(newAllCases).flat();
       newAllCases["priority"] = allItems.filter(item => 
         prioritySymbols.some(sym => item.title.includes(sym))
-      ).sort((a, b) => b.requestDate.localeCompare(a.requestDate)); // 日付の新しい順
+      ).sort((a, b) => b.requestDate.localeCompare(a.requestDate));
+      
+      // キャッシュを更新
+      globalCasesCache = newAllCases;
+      globalIsFirstFetch = false;
       
       setAllCases(newAllCases);
     } catch (err: any) {
@@ -164,6 +225,8 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       searchQuery, setSearchQuery,
       searchClient, setSearchClient,
       searchStatus, setSearchStatus,
+      activeTab, setActiveTab,
+      selectedCase, setSelectedCase,
       updateCaseStatus, updateCaseContent, updateCaseFields, 
       refreshAll: fetchAllData 
     }}>
