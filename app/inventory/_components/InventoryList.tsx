@@ -62,6 +62,24 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
     return parts.filter(p => normalize(p.makerName) === normalize(filter));
   }, [parts, filter]);
 
+  const getGroupColor = (group: string) => {
+    const colors = [
+      "bg-blue-100 text-blue-700 border-blue-200",
+      "bg-purple-100 text-purple-700 border-purple-200",
+      "bg-indigo-100 text-indigo-700 border-indigo-200",
+      "bg-pink-100 text-pink-700 border-pink-200",
+      "bg-orange-100 text-orange-700 border-orange-200",
+      "bg-teal-100 text-teal-700 border-teal-200",
+      "bg-emerald-100 text-emerald-700 border-emerald-200",
+    ];
+    if (!group) return "bg-slate-100 text-slate-500 border-slate-200";
+    let hash = 0;
+    for (let i = 0; i < group.length; i++) {
+      hash = group.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   const getStockStatus = (part: PartMaster) => {
     if (part.currentStock <= 0) return { label: "欠品", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: AlertCircle };
     if (part.currentStock < part.initialStock * 0.3) return { label: "低在庫", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", icon: TrendingDown };
@@ -103,11 +121,11 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
               >
                 {/* Upper Section: Badges */}
                 <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-black bg-slate-800 text-white px-3 py-1 rounded-full uppercase tracking-tighter self-start">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black bg-slate-800 text-white px-3 py-1.5 rounded-xl uppercase tracking-tighter self-start shadow-sm">
                       {part.makerName}
                     </span>
-                    <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-3 py-1 rounded-full uppercase tracking-tighter self-start">
+                    <span className={`text-[11px] font-black px-3 py-1.5 rounded-xl uppercase tracking-tighter self-start border shadow-sm ${getGroupColor(part.group)}`}>
                       {part.group || "未分類"}
                     </span>
                   </div>

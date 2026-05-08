@@ -33,6 +33,24 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
     }
   };
 
+  const getGroupColor = (group: string) => {
+    const colors = [
+      "bg-blue-100 text-blue-700 border-blue-200",
+      "bg-purple-100 text-purple-700 border-purple-200",
+      "bg-indigo-100 text-indigo-700 border-indigo-200",
+      "bg-pink-100 text-pink-700 border-pink-200",
+      "bg-orange-100 text-orange-700 border-orange-200",
+      "bg-teal-100 text-teal-700 border-teal-200",
+      "bg-emerald-100 text-emerald-700 border-emerald-200",
+    ];
+    if (!group) return "bg-slate-100 text-slate-500 border-slate-200";
+    let hash = 0;
+    for (let i = 0; i < group.length; i++) {
+      hash = group.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   const getWorkerName = () => {
     return localStorage.getItem("selectedWorker") || localStorage.getItem("inventory_user_name") || "未設定";
   };
@@ -70,18 +88,17 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
       {/* Content */}
       <div className="relative w-full max-w-lg bg-white rounded-t-[40px] sm:rounded-[40px] shadow-2xl animate-in slide-in-from-bottom-10 duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
         
-        {/* Header (Rich Overlay style) */}
         <div className="sticky top-0 bg-white/80 backdrop-blur-md px-8 py-6 border-b flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-[18px] flex items-center justify-center text-white shadow-lg shadow-blue-100">
-              <Package className="w-6 h-6" />
+            <div className="w-14 h-14 bg-blue-600 rounded-[20px] flex items-center justify-center text-white shadow-lg shadow-blue-100">
+              <Package className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex gap-1.5 mb-0.5">
-                <span className="text-[9px] font-black bg-slate-800 text-white px-2 py-0.5 rounded uppercase tracking-tighter">{part.makerName}</span>
-                <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded uppercase tracking-tighter">{part.group || "未分類"}</span>
+              <div className="flex gap-2 mb-1.5">
+                <span className="text-[10px] font-black bg-slate-800 text-white px-3 py-1 rounded-lg uppercase tracking-tighter shadow-sm">{part.makerName}</span>
+                <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-tighter border shadow-sm ${getGroupColor(part.group)}`}>{part.group || "未分類"}</span>
               </div>
-              <h2 className="text-[18px] font-black text-slate-800 leading-tight">{part.id}</h2>
+              <h2 className="text-[20px] font-black text-slate-800 leading-tight">{part.id}</h2>
             </div>
           </div>
           <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 transition-all active:scale-90">
