@@ -17,10 +17,17 @@ export function StockEntry() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 前回入力した使用者名を保存しておく
+  // 前回入力または共有されている担当者名を保存しておく
   useEffect(() => {
-    const saved = localStorage.getItem("inventory_user_name");
-    if (saved) setUserName(saved);
+    // まず日報/ホワイトボード共有の担当者を優先
+    const shared = localStorage.getItem("selectedWorker");
+    const localSaved = localStorage.getItem("inventory_user_name");
+    
+    if (shared) {
+      setUserName(shared);
+    } else if (localSaved) {
+      setUserName(localSaved);
+    }
   }, []);
 
   const filteredParts = parts.filter(p => 

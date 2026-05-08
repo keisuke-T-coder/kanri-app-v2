@@ -37,7 +37,10 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
   const relatedHistories = histories.filter(h => h.partId === part.id).slice(0, 5);
 
   const handleQuickAction = async (op: StockOperation) => {
-    const userName = localStorage.getItem("inventory_user_name") || "未設定";
+    const shared = localStorage.getItem("selectedWorker");
+    const localSaved = localStorage.getItem("inventory_user_name");
+    const userName = shared || localSaved || "未設定";
+    
     setIsSubmitting(true);
     setMessage(null);
 

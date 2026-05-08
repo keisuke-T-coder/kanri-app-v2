@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useInventory } from "./_context/InventoryContext";
 import { MAKER_LIST, PartMaster } from "./_types/schema";
 import { RefreshCw, Package, History, PlusCircle, User } from "lucide-react";
@@ -17,6 +17,17 @@ export default function InventoryPage() {
   const [activeMainTab, setActiveMainTab] = useState<MainTab>("list");
   const [activeMakerTab, setActiveMakerTab] = useState("よく使う");
   const [selectedPart, setSelectedPart] = useState<PartMaster | null>(null);
+  const [workerName, setWorkerName] = useState("未設定");
+
+  useEffect(() => {
+    // 日報/ホワイトボードと共通の担当者情報を取得
+    const savedWorker = localStorage.getItem("selectedWorker");
+    if (savedWorker) {
+      setWorkerName(savedWorker);
+      // 在庫アプリ用の使用者名としても同期
+      localStorage.setItem("inventory_user_name", savedWorker);
+    }
+  }, []);
 
   const mainTabs = [
     { id: "list", label: "在庫一覧", icon: Package },
@@ -33,9 +44,9 @@ export default function InventoryPage() {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Inventory Management</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-            <User className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-[11px] font-bold text-slate-600">担当者</span>
+          <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-2xl border border-blue-100 shadow-sm">
+            <User className="w-4 h-4 text-blue-500" />
+            <span className="text-[12px] font-black text-blue-700">{workerName}</span>
           </div>
           <button 
             onClick={() => refresh()}

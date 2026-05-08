@@ -3,7 +3,7 @@
 import React from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { TOP_21_PARTS, PartMaster } from "../_types/schema";
-import { ChevronRight, Package, AlertCircle } from "lucide-react";
+import { ChevronRight, Package, AlertCircle, TrendingDown, CheckCircle2 } from "lucide-react";
 
 interface InventoryListProps {
   filter: string;
@@ -13,21 +13,20 @@ interface InventoryListProps {
 export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const { parts, loading } = useInventory();
 
-  // フィルタリングロジック
   // 表記の揺れを吸収する正規化関数
   const normalize = (str: string) => {
     return str
-      .replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // 全角英数記号を半角へ
-      .replace(/[（）]/g, (s) => s === "（" ? "(" : ")") // カッコの統一
-      .replace(/[〜～ー−ｰ-]/g, "-") // 波ダッシュ、チルダ、長音、ハイフンを半角ハイフンに統一
-      .replace(/\s+/g, "") // スペースを全削除
+      .replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
+      .replace(/[（）]/g, (s) => s === "（" ? "(" : ")")
+      .replace(/[〜～ー−ｰ-]/g, "-")
+      .replace(/\s+/g, "")
       .toLowerCase();
   };
 
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 判定ロジックの改良：誤検知（汎用的な短い名前）を排除
+      // 判定ロジックの厳格化：前方一致を基本とし、短すぎる一致を排除
       return parts
         .filter(p => {
           const normPartId = normalize(p.id);
@@ -35,30 +34,39 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
           
           return TOP_21_PARTS.some(name => {
             const normName = normalize(name);
-            // 1. スプレッドシート側がターゲット名を含んでいる（より詳細な場合：OK）
-            if (normPartId.includes(normName)) return true;
-            // 2. ターゲット名がスプレッドシート側を含んでいる（略称の場合）
-            // ただし「ボールタップ」等の短い汎用名は除外するため、7文字以上のときのみ許可
-            if (normName.includes(normPartId) && normPartId.length >= 7) return true;
+            // どちらかがどちらかの前方一致
+            if (normPartId.startsWith(normName) || normName.startsWith(normPartId)) {
+              // 6文字以下の短い名前（ボールタップ等）の場合は、長さがほぼ一致することを要求
+              if (normPartId.length <= 6 || normName.length <= 6) {
+                return Math.abs(normPartId.length - normName.length) <= 1;
+              }
+              return true;
+            }
             return false;
           });
         })
         .sort((a, b) => {
           const indexA = TOP_21_PARTS.findIndex(name => {
-            const normName = normalize(name);
-            const normId = normalize(a.id);
-            return normId.includes(normName) || (normName.includes(normId) && normId.length >= 7);
+            const nName = normalize(name);
+            const nId = normalize(a.id);
+            return nId.startsWith(nName) || nName.startsWith(nId);
           });
           const indexB = TOP_21_PARTS.findIndex(name => {
-            const normName = normalize(name);
-            const normId = normalize(b.id);
-            return normId.includes(normName) || (normName.includes(normId) && normId.length >= 7);
+            const nName = normalize(name);
+            const nId = normalize(b.id);
+            return nId.startsWith(nName) || nName.startsWith(nId);
           });
           return indexA - indexB;
         });
     }
     return parts.filter(p => normalize(p.makerName) === normalize(filter));
   }, [parts, filter]);
+
+  const getStockStatus = (part: PartMaster) => {
+    if (part.currentStock <= 0) return { label: "欠品", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: AlertCircle };
+    if (part.currentStock < part.initialStock * 0.3) return { label: "低在庫", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", icon: TrendingDown };
+    return { label: "適正", color: "text-blue-600", bg: "bg-white", border: "border-slate-100", icon: CheckCircle2 };
+  };
 
   if (loading && parts.length === 0) {
     return (
@@ -70,60 +78,73 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center px-1 mb-4">
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center px-1">
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
           {filter} — {filteredParts.length} 件
         </span>
       </div>
 
-      {filteredParts.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-100">
-          <p className="text-slate-300 font-bold">該当する部品がありません</p>
-        </div>
-      ) : (
-        filteredParts.map((part) => (
-          <div 
-            key={part.id}
-            onClick={() => onSelect(part)}
-            className="bg-white rounded-[24px] p-5 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-white hover:border-blue-100 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <div className="flex-1 min-w-0 pr-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase">
-                  {part.makerName}
-                </span>
-                <span className="text-[10px] font-bold text-slate-300">
-                  {part.group}
-                </span>
-              </div>
-              <h3 className="text-[15px] font-black text-slate-800 truncate leading-tight">
-                {part.id}
-              </h3>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">初期</span>
-                  <span className="text-sm font-black text-slate-600">{part.initialStock}</span>
-                </div>
-                <div className="w-px h-6 bg-slate-100"></div>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">現在</span>
-                  <span className={`text-lg font-black ${
-                    part.currentStock <= 0 ? "text-red-500" : 
-                    part.currentStock < part.initialStock * 0.2 ? "text-amber-500" : "text-blue-600"
-                  }`}>
-                    {part.currentStock}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <button className="bg-slate-50 p-3 rounded-2xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all">
-              <ChevronRight className="w-5 h-5" />
-            </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {filteredParts.length === 0 ? (
+          <div className="col-span-full bg-white rounded-3xl p-16 text-center border-2 border-dashed border-slate-100">
+            <p className="text-slate-300 font-bold">該当する部品がありません</p>
           </div>
-        ))
-      )}
+        ) : (
+          filteredParts.map((part) => {
+            const status = getStockStatus(part);
+            const StatusIcon = status.icon;
+            return (
+              <div 
+                key={part.id}
+                onClick={() => onSelect(part)}
+                className={`group relative rounded-[32px] p-6 border-2 transition-all active:scale-[0.97] cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 ${status.bg} ${status.border}`}
+              >
+                {/* Upper Section: Badges */}
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-[9px] font-black bg-slate-800 text-white px-3 py-1 rounded-full uppercase tracking-tighter">
+                    {part.makerName}
+                  </span>
+                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-inner ${status.bg} ${status.border} ${status.color}`}>
+                    <StatusIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{status.label}</span>
+                  </div>
+                </div>
+
+                {/* Middle Section: Part Name */}
+                <div className="mb-6 h-12 flex items-center">
+                  <h3 className="text-[15px] font-black text-slate-800 leading-tight line-clamp-2">
+                    {part.id}
+                  </h3>
+                </div>
+
+                {/* Bottom Section: Stock Info */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100/50">
+                  <div className="flex gap-6">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">初期</span>
+                      <span className="text-base font-black text-slate-500">{part.initialStock}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">現在</span>
+                      <span className={`text-2xl font-black ${status.color}`}>
+                        {part.currentStock}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 group-hover:bg-blue-600 group-hover:text-white p-3 rounded-2xl text-slate-200 transition-all">
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
+                </div>
+                
+                {/* Glass decoration */}
+                <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none group-hover:bg-blue-500/5 transition-all"></div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
