@@ -14,13 +14,24 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const { parts, loading } = useInventory();
 
   // フィルタリングロジック
+  // 表記の揺れを吸収する正規化関数
+  const normalize = (str: string) => {
+    return str
+      .replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // 全角英数記号を半角へ
+      .replace(/[（）]/g, (s) => s === "（" ? "(" : ")") // カッコの統一
+      .replace(/\s+/g, "") // スペースを全削除
+      .toLowerCase();
+  };
+
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 指定された21項目を優先して抽出
-      return parts.filter(p => TOP_21_PARTS.some(name => name.trim() === p.id.trim()));
+      // 正規化して比較
+      return parts.filter(p => 
+        TOP_21_PARTS.some(name => normalize(name) === normalize(p.id))
+      );
     }
-    return parts.filter(p => p.makerName.trim() === filter.trim());
+    return parts.filter(p => normalize(p.makerName) === normalize(filter));
   }, [parts, filter]);
 
   if (loading && parts.length === 0) {
