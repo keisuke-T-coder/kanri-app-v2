@@ -19,6 +19,7 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
     return str
       .replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0)) // 全角英数記号を半角へ
       .replace(/[（）]/g, (s) => s === "（" ? "(" : ")") // カッコの統一
+      .replace(/[〜～ー−ｰ-]/g, "-") // 波ダッシュ、チルダ、長音、ハイフンを半角ハイフンに統一
       .replace(/\s+/g, "") // スペースを全削除
       .toLowerCase();
   };
