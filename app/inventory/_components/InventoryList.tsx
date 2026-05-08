@@ -27,26 +27,32 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const filteredParts = React.useMemo(() => {
     if (filter === "すべて") return parts;
     if (filter === "よく使う") {
-      // 相互の部分一致（どちらかがどちらかを含んでいる）で判定
+      // 判定ロジックの改良：誤検知（汎用的な短い名前）を排除
       return parts
         .filter(p => {
           const normPartId = normalize(p.id);
-          if (normPartId.length < 3) return false; // 誤検知防止のため3文字未満は除外
+          if (normPartId.length < 3) return false;
+          
           return TOP_21_PARTS.some(name => {
             const normName = normalize(name);
-            return normPartId.includes(normName) || normName.includes(normPartId);
+            // 1. スプレッドシート側がターゲット名を含んでいる（より詳細な場合：OK）
+            if (normPartId.includes(normName)) return true;
+            // 2. ターゲット名がスプレッドシート側を含んでいる（略称の場合）
+            // ただし「ボールタップ」等の短い汎用名は除外するため、7文字以上のときのみ許可
+            if (normName.includes(normPartId) && normPartId.length >= 7) return true;
+            return false;
           });
         })
         .sort((a, b) => {
           const indexA = TOP_21_PARTS.findIndex(name => {
             const normName = normalize(name);
             const normId = normalize(a.id);
-            return normId.includes(normName) || normName.includes(normId);
+            return normId.includes(normName) || (normName.includes(normId) && normId.length >= 7);
           });
           const indexB = TOP_21_PARTS.findIndex(name => {
             const normName = normalize(name);
             const normId = normalize(b.id);
-            return normId.includes(normName) || normName.includes(normId);
+            return normId.includes(normName) || (normName.includes(normId) && normId.length >= 7);
           });
           return indexA - indexB;
         });

@@ -28,6 +28,23 @@ export function UsageHistory() {
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr; // 変換できない場合はそのまま
+      return date.toLocaleString("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).replace(/\//g, "/");
+    } catch {
+      return dateStr;
+    }
+  };
+
   if (loading && histories.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 opacity-30">
@@ -93,7 +110,7 @@ export function UsageHistory() {
                   <div className="flex items-center gap-3 text-slate-400">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      <span className="text-[10px] font-bold">{h.createdAt}</span>
+                      <span className="text-[10px] font-bold">{formatDate(h.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <User className="w-3 h-3" />

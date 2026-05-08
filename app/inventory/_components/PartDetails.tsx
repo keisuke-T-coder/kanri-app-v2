@@ -16,6 +16,23 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
   const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleString("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   // この部品に関連する履歴のみ抽出
   const relatedHistories = histories.filter(h => h.partId === part.id).slice(0, 5);
 
@@ -142,7 +159,7 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                           h.operation === '入荷' ? 'bg-green-50 text-green-500 border-green-100' :
                           'bg-white text-slate-400'
                         }`}>{h.operation}</span>
-                        <span className="text-[11px] font-bold text-slate-400">{h.createdAt}</span>
+                        <span className="text-[11px] font-bold text-slate-400">{formatDate(h.createdAt)}</span>
                       </div>
                       <span className="text-[12px] font-bold text-slate-600">{h.user}</span>
                     </div>

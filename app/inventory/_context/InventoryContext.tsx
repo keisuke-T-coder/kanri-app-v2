@@ -25,18 +25,21 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   // 在庫計算ロジック
   const calculateInventory = useCallback((masterData: any[], historyData: any[]) => {
     // 履歴の処理
-    const mappedHistories: StockHistory[] = historyData.map((row) => ({
-      rowNumber: row.rowNumber,
-      createdAt: row["作成日時"] || "",
-      partId: row["ID品名"] || "",
-      operation: row["操作"] || "使用",
-      quantityChange: Number(row["数量の増減"] || 0),
-      user: row["使用者"] || "",
-      idLiving: row["IDリビング"],
-      idHouse: row["IDハウス"],
-      idHidamari: row["IDひだまり"],
-      idTotal: row["IDトータル"]
-    }));
+    const mappedHistories: StockHistory[] = historyData
+      .map((row) => ({
+        rowNumber: row.rowNumber,
+        createdAt: row["作成日時"] || "",
+        partId: String(row["ID品名"] || ""),
+        operation: row["操作"] || "使用",
+        quantityChange: Number(row["数量の増減"] || 0),
+        user: row["使用者"] || "",
+        idLiving: row["IDリビング"],
+        idHouse: row["IDハウス"],
+        idHidamari: row["IDひだまり"],
+        idTotal: row["IDトータル"]
+      }))
+      .filter((h) => h.partId.trim() !== "")
+      .sort((a, b) => b.rowNumber - a.rowNumber);
 
     // マスターの処理と在庫計算
     const mappedParts: PartMaster[] = masterData.map((row) => {
