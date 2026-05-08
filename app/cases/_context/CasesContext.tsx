@@ -118,7 +118,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
         if (!json.success) throw new Error(json.error || "API returned false success");
 
         const mapped: CaseItem[] = json.data.map((row: any) => ({
-          id: `${tab.id}-${row.rowNumber}`,
+          id: String(row["ID"] || `${tab.id}-${row.rowNumber}`),
           clientId: tab.id,
           rowNumber: row.rowNumber,
           title: row["案件名"] || row["施主名"] || row["物件名"] || "",

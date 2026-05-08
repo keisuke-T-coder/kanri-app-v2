@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ClientId, Status, CLIENT_TABS } from "../_types/schema";
 import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus } from "lucide-react";
 import { useCases } from "../_context/CasesContext";
+import { CasePartsManager } from "./CasePartsManager";
 
 const ASSIGNEES = [
   { name: "佐藤", symbol: "🈂️" },
@@ -328,6 +329,9 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
         </div>
 
         {item.history && (<div className="glass rounded-3xl p-6 shadow-sm border border-black/5 space-y-4"><div className="flex items-center text-slate-400"><History className="w-4 h-4 mr-2" /><span className="text-xs font-bold">対応履歴</span></div><div className="text-[13px] font-bold text-slate-600 leading-loose whitespace-pre-wrap bg-black/[0.02] p-4 rounded-2xl">{item.history}</div></div>)}
+        
+        {/* 部品管理セクション (NEW) */}
+        <CasePartsManager item={item} />
 
         <div className="glass rounded-3xl p-6 shadow-sm border border-black/5 space-y-4">
           <div className="flex flex-wrap gap-1 justify-end">

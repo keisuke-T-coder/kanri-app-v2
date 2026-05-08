@@ -9,7 +9,7 @@ interface InventoryContextType {
   loading: boolean;
   refreshing: boolean;
   refresh: () => Promise<void>;
-  addHistory: (history: Partial<StockHistory>) => Promise<{ success: boolean; error?: string }>;
+  addHistory: (history: Partial<StockHistory>, caseId?: string, caseType?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -36,7 +36,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         idLiving: row["IDリビング"],
         idHouse: row["IDハウス"],
         idHidamari: row["IDひだまり"],
-        idTotal: row["IDトータル"]
+        idTotal: row["IDトータル"],
+        idTakeyoshi: row["IDタケヨシ"],
+        idLts: row["IDLTS"]
       }))
       .filter((h) => h.partId.trim() !== "")
       .sort((a, b) => b.rowNumber - a.rowNumber);
@@ -105,21 +107,43 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   }, [calculateInventory]);
 
   // 履歴の追加
-  const addHistory = async (history: Partial<StockHistory>) => {
+  const addHistory = async (history: Partial<StockHistory>, caseId?: string, caseType?: string) => {
     try {
+      const rowData: Record<string, any> = {
+        "作成日時": new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+        "ID品名": history.partId,
+        "操作": history.operation,
+        "数量の増減": history.quantityChange,
+        "使用者": history.user,
+        "IDリビング": "",
+        "IDハウス": "",
+        "IDひだまり": "",
+        "IDトータル": "",
+        "IDタケヨシ": "",
+        "IDLTS": ""
+      };
+
+      // 案件紐付けがある場合
+      if (caseId && caseType) {
+        const CASE_ID_COLUMN_MAP: Record<string, string> = {
+          living: "IDリビング",
+          house: "IDハウス",
+          hidamari: "IDひだまり",
+          total: "IDトータル",
+          takeyoshi: "IDタケヨシ",
+          lts: "IDLTS",
+        };
+        const col = CASE_ID_COLUMN_MAP[caseType];
+        if (col) rowData[col] = caseId;
+      }
+
       const res = await fetch("/api/cases-gas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "addRow",
           sheetName: INVENTORY_SHEETS.HISTORY,
-          rowData: {
-            "作成日時": new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
-            "ID品名": history.partId,
-            "操作": history.operation,
-            "数量の増減": history.quantityChange,
-            "使用者": history.user
-          }
+          rowData
         })
       });
 

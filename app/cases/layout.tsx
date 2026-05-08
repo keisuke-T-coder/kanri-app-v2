@@ -1,13 +1,16 @@
 "use client";
 
 import { CasesProvider } from "./_context/CasesContext";
+import { InventoryProvider } from "../inventory/_context/InventoryContext";
 
 export default function CasesLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="cases-module min-h-screen font-sans">
-      <CasesProvider>
-        {children}
-      </CasesProvider>
+      <InventoryProvider>
+        <CasesProvider>
+          {children}
+        </CasesProvider>
+      </InventoryProvider>
 
       <style jsx global>{`
         .cases-module {

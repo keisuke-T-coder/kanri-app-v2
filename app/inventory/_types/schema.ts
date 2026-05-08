@@ -11,6 +11,8 @@ export interface PartMaster {
   status: "適正" | "低在庫" | "欠品";
 }
 
+export type CaseType = "living" | "house" | "hidamari" | "total" | "takeyoshi" | "lts";
+
 export interface StockHistory {
   rowNumber: number;
   createdAt: string;
@@ -18,11 +20,13 @@ export interface StockHistory {
   operation: StockOperation;
   quantityChange: number;
   user: string;
-  // 将来拡張用案件ID
+  // 案件紐付け用ID列
   idLiving?: string;
   idHouse?: string;
   idHidamari?: string;
   idTotal?: string;
+  idTakeyoshi?: string;
+  idLts?: string;
 }
 
 export const MAKER_MAP: Record<string, string> = {
