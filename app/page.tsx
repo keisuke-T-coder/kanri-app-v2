@@ -52,6 +52,13 @@ export default function Home() {
           <div className="w-[40%] h-[3px] bg-[#eaaa43] rounded-full"></div>
         </Link>
 
+        {/* 4. 在庫管理 */}
+        <Link href="/inventory" className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.03)] py-10 flex flex-col items-center justify-center active:scale-95 transition-transform border border-transparent hover:border-indigo-100">
+          <h2 className="text-[1.3rem] font-black text-indigo-600 tracking-widest mb-1">在庫管理</h2>
+          <p className="text-[10px] text-indigo-300 font-medium mb-3">Inventory Management</p>
+          <div className="w-[40%] h-[3px] bg-indigo-500 rounded-full"></div>
+        </Link>
+
       </div>
 
       {/* バージョン表記 (右下) */}
