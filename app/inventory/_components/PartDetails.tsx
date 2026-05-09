@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { PartMaster, StockOperation, CaseType } from "../_types/schema";
 import { X, Package, Clock, Hash, CheckCircle2, AlertCircle, Minus, Plus, User, Search, Briefcase, Loader2, Trash2, MessageCircle, Share2, Copy, Check } from "lucide-react";
-import { useCases, CaseItem } from "../../cases/_context/CasesContext";
+import { useCases } from "../../cases/_context/CasesContext";
+import { CaseItem } from "../../cases/_types/schema";
 
 interface PartDetailsProps {
   part: PartMaster;
