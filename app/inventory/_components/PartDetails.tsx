@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { PartMaster, StockOperation, CaseType } from "../_types/schema";
-import { X, Package, Clock, Hash, CheckCircle2, AlertCircle, Minus, Plus, User, Search, Briefcase, Loader2, Trash2 } from "lucide-react";
+import { X, Package, Clock, Hash, CheckCircle2, AlertCircle, Minus, Plus, User, Search, Briefcase, Loader2, Trash2, MessageCircle, Share2, Copy, Check } from "lucide-react";
 import { useCases, CaseItem } from "../../cases/_context/CasesContext";
 
 interface PartDetailsProps {
@@ -17,6 +17,9 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [isOrderOpen, setIsOrderOpen] = useState(false);
+  const [orderQuantity, setOrderQuantity] = useState(1);
+  const [copyFeedback, setCopyFeedback] = useState(false);
   
   // 案件紐付け用ステート
   const { allCases } = useCases();
@@ -105,6 +108,38 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
       setMessage({ type: 'error', text: result.error || '登録に失敗しました' });
     }
     setIsSubmitting(false);
+  };
+
+  const generateOrderText = () => {
+    return `🚨発注お願いします
+
+--在庫分--
+${part.id} × ${orderQuantity}
+
+よろしくお願いいたします。`;
+  };
+
+  const handleShare = async () => {
+    const text = generateOrderText();
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: text
+        });
+      } catch (err) {
+        console.error("Share failed:", err);
+      }
+    } else {
+      const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+      window.open(lineUrl, "_blank");
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generateOrderText());
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
   };
 
   const handleDeleteHistory = async (rowNumber: number) => {
@@ -322,6 +357,15 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                   </div>
                 )}
               </div>
+
+              {/* Parts Order Button */}
+              <button 
+                onClick={() => setIsOrderOpen(true)}
+                className="w-full flex items-center justify-center space-x-2 py-5 bg-blue-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-blue-100 active:scale-95 transition-all"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>部品発注依頼 (LINE共有)</span>
+              </button>
             </div>
 
             {message && (
@@ -391,6 +435,76 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
         {/* Footer Padding */}
         <div className="h-10"></div>
       </div>
+
+      {/* Parts Order Modal */}
+      {isOrderOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl border border-black/5 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-black/5 flex items-center justify-between bg-[#f8f6f0]/50">
+              <h3 className="text-sm font-black text-slate-800">部品発注依頼</h3>
+              <button onClick={() => setIsOrderOpen(false)} className="p-2 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Quantity Stepper */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">発注数量</label>
+                <div className="flex items-center gap-4 bg-slate-50 border border-slate-100 rounded-3xl p-2">
+                  <button 
+                    onClick={() => setOrderQuantity(prev => Math.max(1, prev - 1))}
+                    className="w-12 h-12 flex items-center justify-center bg-white text-slate-400 rounded-2xl shadow-sm active:scale-90 transition-all"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="text-2xl font-black text-slate-800">{orderQuantity}</span>
+                    <span className="text-xs font-bold text-slate-400 ml-1">個</span>
+                  </div>
+                  <button 
+                    onClick={() => setOrderQuantity(prev => prev + 1)}
+                    className="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-100 active:scale-90 transition-all"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">送信内容の確認</label>
+                <div className="bg-slate-900 rounded-3xl p-5 text-xs font-bold text-slate-300 leading-relaxed whitespace-pre-wrap relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-3 opacity-10">
+                    <MessageCircle className="w-12 h-12 text-white" />
+                  </div>
+                  {generateOrderText()}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handleCopy}
+                  className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[28px] border-2 transition-all active:scale-95 ${
+                    copyFeedback ? "border-green-500 bg-green-50 text-green-600" : "border-slate-100 bg-white text-slate-600"
+                  }`}
+                >
+                  {copyFeedback ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5 text-slate-400" />}
+                  <span className="text-[10px] font-black">{copyFeedback ? "コピー完了" : "文章をコピー"}</span>
+                </button>
+                <button 
+                  onClick={handleShare}
+                  className="flex flex-col items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-[28px] shadow-xl shadow-blue-100 active:scale-95 transition-all"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="text-[10px] font-black">LINEで共有</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
