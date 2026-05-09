@@ -9,7 +9,7 @@ export const CLIENT_TABS: { id: ClientId; label: string; sheetName: string }[] =
   { id: "house", label: "ハウス", sheetName: "シート21" }
 ];
 
-export type Status = "未完了" | "完了";
+export type Status = "未完了" | "完了" | "請求済み" | "完了（未請求）";
 
 export interface CaseItem {
   id: string; // generated from rowNumber + clientId
