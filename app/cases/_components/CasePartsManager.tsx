@@ -100,11 +100,11 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
             <Package className="w-4 h-4 mr-2 opacity-60" />
             <span className="text-xs font-bold uppercase tracking-widest">使用部品履歴</span>
           </div>
-          <button 
+            <button 
             onClick={() => setIsRegistering(true)}
-            className="flex items-center space-x-1 px-3 py-1.5 bg-primary text-white rounded-xl text-[10px] font-black shadow-sm active:scale-95 transition-all"
+            className="flex items-center space-x-1 px-4 py-2 bg-primary text-white rounded-xl text-[11px] font-black shadow-md hover:shadow-lg active:scale-95 transition-all border border-primary/20"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>部品を追加</span>
           </button>
         </div>
@@ -165,8 +165,8 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
                     type="text" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="品名・メーカー..."
-                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="品名・メーカーを入力..."
+                    className="w-full pl-11 pr-4 py-4 bg-white border border-slate-300 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all shadow-sm"
                   />
                 </div>
                 {filteredParts.length > 0 && !selectedPartId && (
@@ -223,7 +223,7 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
                     type="number" 
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none"
+                    className="w-full p-4 bg-white border border-slate-300 rounded-2xl text-sm font-black text-center outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm"
                   />
                 </div>
                 <div className="flex-1 space-y-2">

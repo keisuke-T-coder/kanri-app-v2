@@ -260,24 +260,24 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
               {item.propertyName && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">物件名</label>
-                  <input type="text" value={editHeaderFields.propertyName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, propertyName: e.target.value }))} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-inner" />
+                  <input type="text" value={editHeaderFields.propertyName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, propertyName: e.target.value }))} className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm" />
                 </div>
               )}
               {item.caseName && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">案件名</label>
-                  <input type="text" value={editHeaderFields.caseName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, caseName: e.target.value }))} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-inner" />
+                  <input type="text" value={editHeaderFields.caseName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, caseName: e.target.value }))} className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm" />
                 </div>
               )}
               {item.ownerName && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">施主名</label>
-                  <input type="text" value={editHeaderFields.ownerName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, ownerName: e.target.value }))} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-inner" />
+                  <input type="text" value={editHeaderFields.ownerName} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, ownerName: e.target.value }))} className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm" />
                 </div>
               )}
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">住所</label>
-                <input type="text" value={editHeaderFields.address} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, address: e.target.value }))} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-inner" />
+                <input type="text" value={editHeaderFields.address} onChange={(e) => setEditHeaderFields(prev => ({ ...prev, address: e.target.value }))} className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm" />
               </div>
             </div>
           ) : (
@@ -325,7 +325,7 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
               </div>
             )}
           </div>
-          {isEditingContent ? (<textarea value={editContentText} onChange={(e) => setEditContentText(e.target.value)} className="w-full h-40 p-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold shadow-inner outline-none" />) : (<div className="text-sm font-bold text-slate-700 leading-relaxed whitespace-pre-wrap">{item.content || "未登録"}</div>)}
+          {isEditingContent ? (<textarea value={editContentText} onChange={(e) => setEditContentText(e.target.value)} className="w-full h-40 p-4 bg-white border border-slate-300 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />) : (<div className="text-sm font-bold text-slate-700 leading-relaxed whitespace-pre-wrap">{item.content || "未登録"}</div>)}
         </div>
 
         {item.history && (<div className="glass rounded-3xl p-6 shadow-sm border border-black/5 space-y-4"><div className="flex items-center text-slate-400"><History className="w-4 h-4 mr-2" /><span className="text-xs font-bold">対応履歴</span></div><div className="text-[13px] font-bold text-slate-600 leading-loose whitespace-pre-wrap bg-black/[0.02] p-4 rounded-2xl">{item.history}</div></div>)}
@@ -338,7 +338,7 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
             {ASSIGNEES.map((asg) => (<button key={asg.name} onClick={() => setSelectedAssignee(asg)} className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all ${selectedAssignee.name === asg.name ? "bg-primary text-white" : "bg-black/[0.03] text-slate-400"}`}>{asg.symbol} {asg.name}</button>))}
           </div>
           <div className="flex space-x-2">
-            <input type="text" value={quickInputText} onChange={(e) => setQuickInputText(e.target.value)} placeholder="追記..." className="flex-1 p-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold shadow-inner outline-none" />
+            <input type="text" value={quickInputText} onChange={(e) => setQuickInputText(e.target.value)} placeholder="追記する内容を入力..." className="flex-1 p-4 bg-white border border-slate-400 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
             <button onClick={handleQuickAppend} disabled={updating || !quickInputText.trim()} className="px-6 py-4 bg-slate-800 text-white rounded-2xl text-xs font-black">追記</button>
           </div>
         </div>
