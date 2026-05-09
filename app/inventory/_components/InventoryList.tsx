@@ -120,18 +120,21 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
                 className={`group relative rounded-[32px] p-6 border-2 transition-all active:scale-[0.97] cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 ${status.bg} ${status.border}`}
               >
                 {/* Upper Section: Badges */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black bg-slate-800 text-white px-3 py-1.5 rounded-xl uppercase tracking-tighter self-start shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[8px] font-black bg-slate-800 text-white px-1.5 py-0.5 rounded-md uppercase tracking-tighter self-start shadow-sm">
                       {part.makerName}
                     </span>
-                    <span className={`text-[11px] font-black px-3 py-1.5 rounded-xl uppercase tracking-tighter self-start border shadow-sm ${getGroupColor(part.group)}`}>
-                      {part.group || "未分類"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">グループ</span>
+                      <span className={`text-[13px] font-black w-6 h-6 flex items-center justify-center rounded-lg border shadow-sm ${getGroupColor(part.group)}`}>
+                        {part.group || "-"}
+                      </span>
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-inner ${status.bg} ${status.border} ${status.color}`}>
-                    <StatusIcon className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{status.label}</span>
+                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border shadow-inner ${status.bg} ${status.border} ${status.color}`}>
+                    <StatusIcon className="w-2.5 h-2.5" />
+                    <span className="text-[8px] font-black uppercase tracking-widest">{status.label}</span>
                   </div>
                 </div>
 
@@ -146,11 +149,11 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100/50">
                   <div className="flex gap-6">
                     <div className="flex flex-col justify-end">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">初期</span>
-                      <span className="text-base font-black text-slate-500">{part.initialStock}</span>
+                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">初期</span>
+                      <span className="text-xs font-black text-slate-500">{part.initialStock}</span>
                     </div>
                     <div className="flex flex-col justify-end">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">現在</span>
+                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">現在</span>
                       <span className={`text-4xl font-black leading-none ${status.color}`}>
                         {part.currentStock}
                       </span>
