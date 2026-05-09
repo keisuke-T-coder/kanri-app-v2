@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ClientId, Status, CLIENT_TABS } from "../_types/schema";
+import { ClientId, Status, CLIENT_TABS, CaseItem } from "../_types/schema";
 import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus } from "lucide-react";
 import { useCases } from "../_context/CasesContext";
 import { CasePartsManager } from "./CasePartsManager";
