@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useInventory } from "../_context/InventoryContext";
-import { StockOperation } from "../_types/schema";
-import { CheckCircle2, AlertCircle, Package, User, Hash, Search, ArrowRight } from "lucide-react";
+import { StockOperation, CaseType } from "../_types/schema";
+import { CheckCircle2, AlertCircle, Package, User, Hash, Search, ArrowRight, Briefcase, Loader2 } from "lucide-react";
+import { useCases, CaseItem } from "../../cases/_context/CasesContext";
 
 export function StockEntry() {
   const { parts, addHistory } = useInventory();
@@ -16,6 +17,29 @@ export function StockEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // 案件紐付け用ステート
+  const { allCases } = useCases();
+  const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+  const [selectedClient, setSelectedClient] = useState<CaseType | null>(null);
+
+  const uncompletedCases = React.useMemo(() => {
+    if (!selectedClient) return [];
+    const clientCases = allCases[selectedClient] || [];
+    return clientCases.filter(c => 
+      c.status !== "完了" && 
+      c.status !== "請求済み" &&
+      c.status !== "完了（未請求）"
+    );
+  }, [allCases, selectedClient]);
+
+  const CLIENTS: { id: CaseType, name: string }[] = [
+    { id: "living", name: "リビング" },
+    { id: "house", name: "ハウス" },
+    { id: "hidamari", name: "ひだまり" },
+    { id: "takeyoshi", name: "タケヨシ" },
+    { id: "lts", name: "LTS" }
+  ];
 
   // 前回入力または共有されている担当者名を保存しておく
   useEffect(() => {
@@ -49,7 +73,9 @@ export function StockEntry() {
       partId,
       operation,
       quantityChange: Number(quantity),
-      user: userName
+      user: userName,
+      caseId: selectedCase?.id,
+      caseType: selectedCase?.clientId as CaseType
     });
 
     if (result.success) {
@@ -57,6 +83,8 @@ export function StockEntry() {
       setPartId("");
       setSearchQuery("");
       setQuantity("1");
+      setSelectedCase(null);
+      setSelectedClient(null);
       // ユーザー名は次回のために保存
       localStorage.setItem("inventory_user_name", userName);
     } else {
@@ -77,8 +105,8 @@ export function StockEntry() {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-6 pb-10">
+    <div className="max-w-md mx-auto relative">
+      <form onSubmit={handleSubmit} className={`space-y-6 pb-10 transition-all ${isSubmitting ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
         
         {/* Operation Selection */}
         <div className="grid grid-cols-2 gap-3">
@@ -129,6 +157,76 @@ export function StockEntry() {
                   </span>
                 </button>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Case Selection (Optional) - 2 Step Selection */}
+        <div className="bg-white rounded-[28px] p-6 shadow-sm border border-white space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-blue-500" />
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">案件を紐付ける (任意)</label>
+            </div>
+            {(selectedCase || selectedClient) && (
+              <button type="button" onClick={() => { setSelectedCase(null); setSelectedClient(null); }} className="text-[10px] font-bold text-red-400 underline">リセット</button>
+            )}
+          </div>
+
+          {selectedCase ? (
+            /* Selected Case Display */
+            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center justify-between animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-md self-start mb-1 uppercase tracking-tighter">
+                  {CLIENTS.find(c => c.id === selectedCase.clientId)?.name}
+                </span>
+                <span className="text-[13px] font-bold text-slate-700">{selectedCase.title || selectedCase.ownerName}</span>
+                <span className="text-[10px] font-bold text-slate-400">{selectedCase.propertyName}</span>
+              </div>
+              <CheckCircle2 className="w-5 h-5 text-blue-500" />
+            </div>
+          ) : !selectedClient ? (
+            /* Step 1: Client Selection */
+            <div className="grid grid-cols-3 gap-2">
+              {CLIENTS.map(client => (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => setSelectedClient(client.id)}
+                  className="py-3 px-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-black text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                >
+                  {client.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Step 2: Uncompleted Case List */
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1 mb-1">
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                  {CLIENTS.find(c => c.id === selectedClient)?.name}の未完了案件
+                </span>
+                <button type="button" onClick={() => setSelectedClient(null)} className="text-[10px] font-bold text-slate-400 underline">変更</button>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto pr-1 space-y-2 no-scrollbar">
+                {uncompletedCases.length === 0 ? (
+                  <p className="text-center py-4 text-[11px] font-bold text-slate-300 bg-slate-50 rounded-xl italic">未完了案件はありません</p>
+                ) : (
+                  uncompletedCases.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCase(c)}
+                      className="w-full p-4 flex flex-col items-start bg-slate-50 border border-slate-100 rounded-2xl hover:border-blue-400 hover:bg-blue-50/30 transition-all text-left shadow-sm group"
+                    >
+                      <span className="text-[12px] font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                        {c.title || c.ownerName}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 mt-1">{c.propertyName}</span>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -184,6 +282,17 @@ export function StockEntry() {
           <ArrowRight className="w-5 h-5" />
         </button>
       </form>
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 sm:absolute z-50 flex flex-col items-center justify-center bg-white/30 backdrop-blur-[2px] rounded-[40px] animate-in fade-in duration-300">
+          <div className="bg-white/80 p-8 rounded-[32px] shadow-2xl flex flex-col items-center border border-white">
+            <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+            <span className="text-sm font-black text-blue-600 uppercase tracking-widest">データ反映中...</span>
+            <p className="text-[10px] font-bold text-slate-400 mt-2">スプレッドシートに書き込み中です</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

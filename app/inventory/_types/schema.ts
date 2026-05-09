@@ -27,6 +27,9 @@ export interface StockHistory {
   idTotal?: string;
   idTakeyoshi?: string;
   idLts?: string;
+  // 一時的な紐付け用フィールド
+  caseId?: string;
+  caseType?: string;
 }
 
 export const MAKER_MAP: Record<string, string> = {

@@ -3,12 +3,38 @@
 import React, { useState } from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { StockOperation } from "../_types/schema";
-import { Search, Filter, History as HistoryIcon, Clock, User } from "lucide-react";
+import { Search, Filter, History as HistoryIcon, Clock, User, Briefcase } from "lucide-react";
+import { useCases } from "../../cases/_context/CasesContext";
 
 export function UsageHistory() {
   const { histories, loading } = useInventory();
+  const { allCases } = useCases();
   const [query, setQuery] = useState("");
   const [opFilter, setOpFilter] = useState<StockOperation | "すべて">("すべて");
+
+  const CLIENTS = [
+    { id: "living", name: "リビング" },
+    { id: "house", name: "ハウス" },
+    { id: "hidamari", name: "ひだまり" },
+    { id: "takeyoshi", name: "タケヨシ" },
+    { id: "lts", name: "LTS" }
+  ];
+
+  const getLinkedCase = (h: any) => {
+    const caseId = h.idLiving || h.idHouse || h.idHidamari || h.idTotal || h.idTakeyoshi || h.idLts;
+    if (!caseId) return null;
+    
+    for (const clientId in allCases) {
+      const found = allCases[clientId].find(c => c.id === caseId);
+      if (found) {
+        return {
+          title: found.title || found.ownerName,
+          clientName: CLIENTS.find(cl => cl.id === clientId)?.name || clientId
+        };
+      }
+    }
+    return null;
+  };
 
   const filteredHistories = React.useMemo(() => {
     return histories.filter(h => {
@@ -116,6 +142,14 @@ export function UsageHistory() {
                       <User className="w-3 h-3" />
                       <span className="text-[10px] font-bold">{h.user}</span>
                     </div>
+                    {getLinkedCase(h) && (
+                      <div className="flex items-center gap-1 bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full border border-blue-100 max-w-[280px]">
+                        <Briefcase className="w-2.5 h-2.5 flex-shrink-0" />
+                        <span className="text-[9px] font-black truncate">
+                          {getLinkedCase(h)?.clientName}: {getLinkedCase(h)?.title}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end">

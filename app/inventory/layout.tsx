@@ -1,13 +1,16 @@
 "use client";
 
 import { InventoryProvider } from "./_context/InventoryContext";
+import { CasesProvider } from "../cases/_context/CasesContext";
 
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="inventory-module min-h-screen bg-[#f8f6f0] font-sans">
-      <InventoryProvider>
-        {children}
-      </InventoryProvider>
+      <CasesProvider>
+        <InventoryProvider>
+          {children}
+        </InventoryProvider>
+      </CasesProvider>
 
       <style jsx global>{`
         .inventory-module {

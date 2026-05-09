@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { useInventory } from "../_context/InventoryContext";
-import { PartMaster, StockOperation } from "../_types/schema";
-import { X, Package, Clock, Hash, CheckCircle2, AlertCircle, Minus, Plus, User } from "lucide-react";
+import { PartMaster, StockOperation, CaseType } from "../_types/schema";
+import { X, Package, Clock, Hash, CheckCircle2, AlertCircle, Minus, Plus, User, Search, Briefcase, Loader2, Trash2 } from "lucide-react";
+import { useCases, CaseItem } from "../../cases/_context/CasesContext";
 
 interface PartDetailsProps {
   part: PartMaster;
@@ -11,10 +12,34 @@ interface PartDetailsProps {
 }
 
 export function PartDetails({ part, onClose }: PartDetailsProps) {
-  const { histories, addHistory } = useInventory();
+  const { histories, addHistory, deleteHistory } = useInventory();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  
+  // 案件紐付け用ステート
+  const { allCases } = useCases();
+  const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+  const [selectedClient, setSelectedClient] = useState<CaseType | null>(null);
+
+  const uncompletedCases = React.useMemo(() => {
+    if (!selectedClient) return [];
+    const clientCases = allCases[selectedClient] || [];
+    return clientCases.filter(c => 
+      c.status !== "完了" && 
+      c.status !== "請求済み" &&
+      c.status !== "完了（未請求）"
+    );
+  }, [allCases, selectedClient]);
+
+  const CLIENTS: { id: CaseType, name: string }[] = [
+    { id: "living", name: "リビング" },
+    { id: "house", name: "ハウス" },
+    { id: "hidamari", name: "ひだまり" },
+    { id: "takeyoshi", name: "タケヨシ" },
+    { id: "lts", name: "LTS" }
+  ];
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -68,7 +93,9 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
       partId: part.id,
       operation: op,
       quantityChange: Number(quantity),
-      user: userName
+      user: userName,
+      caseId: selectedCase?.id,
+      caseType: selectedCase?.clientId as CaseType
     });
 
     if (result.success) {
@@ -78,6 +105,36 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
       setMessage({ type: 'error', text: result.error || '登録に失敗しました' });
     }
     setIsSubmitting(false);
+  };
+
+  const handleDeleteHistory = async (rowNumber: number) => {
+    if (!window.confirm("この履歴を削除してもよろしいですか？（在庫数に影響します）")) return;
+    
+    setDeletingId(rowNumber);
+    const result = await deleteHistory(rowNumber);
+    if (result.success) {
+      setMessage({ type: 'success', text: '履歴を削除しました' });
+      setTimeout(() => setMessage(null), 3000);
+    } else {
+      alert(result.error || "削除に失敗しました");
+    }
+    setDeletingId(null);
+  };
+
+  const getLinkedCase = (h: any) => {
+    const caseId = h.idLiving || h.idHouse || h.idHidamari || h.idTotal || h.idTakeyoshi || h.idLts;
+    if (!caseId) return null;
+    
+    for (const clientId in allCases) {
+      const found = allCases[clientId].find(c => c.id === caseId);
+      if (found) {
+        return {
+          title: found.title || found.ownerName,
+          clientName: CLIENTS.find(cl => cl.id === clientId)?.name || clientId
+        };
+      }
+    }
+    return null;
   };
 
   return (
@@ -135,11 +192,85 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
               </div>
             </div>
 
+            {/* Case Linkage Section - 2 Step Selection */}
+            <div className="space-y-3 px-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Briefcase className="w-3 h-3" />
+                  案件を紐付ける
+                </span>
+                {(selectedCase || selectedClient) && (
+                  <button 
+                    onClick={() => { setSelectedCase(null); setSelectedClient(null); }} 
+                    className="text-[10px] font-black text-red-400 hover:text-red-500 underline"
+                  >
+                    リセット
+                  </button>
+                )}
+              </div>
+
+              {selectedCase ? (
+                /* Selected Case Display */
+                <div className="bg-white p-4 rounded-[24px] border-2 border-blue-100 shadow-sm flex items-center justify-between group animate-in zoom-in-95 duration-200">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded-md self-start mb-1 uppercase tracking-tighter">
+                      {CLIENTS.find(c => c.id === selectedCase.clientId)?.name}
+                    </span>
+                    <span className="text-[13px] font-black text-slate-700">{selectedCase.title || selectedCase.ownerName}</span>
+                    <span className="text-[10px] font-bold text-slate-400">{selectedCase.propertyName}</span>
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                </div>
+              ) : !selectedClient ? (
+                /* Step 1: Client Selection */
+                <div className="grid grid-cols-3 gap-2">
+                  {CLIENTS.map(client => (
+                    <button
+                      key={client.id}
+                      onClick={() => setSelectedClient(client.id)}
+                      className="py-3 px-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                    >
+                      {client.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                /* Step 2: Uncompleted Case List */
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1 mb-1">
+                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                      {CLIENTS.find(c => c.id === selectedClient)?.name}の未完了案件
+                    </span>
+                    <button onClick={() => setSelectedClient(null)} className="text-[10px] font-bold text-slate-400 underline">変更</button>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto pr-1 space-y-2 no-scrollbar">
+                    {uncompletedCases.length === 0 ? (
+                      <p className="text-center py-4 text-[11px] font-bold text-slate-300 bg-slate-50 rounded-xl italic">未完了案件はありません</p>
+                    ) : (
+                      uncompletedCases.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedCase(c)}
+                          className="w-full p-4 flex flex-col items-start bg-white border border-slate-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/30 transition-all text-left shadow-sm group"
+                        >
+                          <span className="text-[12px] font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                            {c.title || c.ownerName}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 mt-1">{c.propertyName}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col items-center gap-8">
               {/* Rich Stepper */}
-              <div className="flex items-center gap-6 bg-white p-2 rounded-[28px] border-2 border-slate-100 shadow-inner">
+              <div className={`flex items-center gap-6 bg-white p-2 rounded-[28px] border-2 border-slate-100 shadow-inner transition-opacity ${isSubmitting ? 'opacity-50 pointer-events-none' : ''}`}>
                 <button 
                   onClick={() => setQuantity(Math.max(1, parseInt(quantity) - 1).toString())}
+                  disabled={isSubmitting}
                   className="w-12 h-12 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-600 transition-all active:scale-90"
                 >
                   <Minus className="w-6 h-6" />
@@ -150,18 +281,20 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                     type="number" 
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
+                    disabled={isSubmitting}
                     className="w-16 text-center text-3xl font-black text-slate-800 bg-transparent focus:outline-none"
                   />
                 </div>
                 <button 
                   onClick={() => setQuantity((parseInt(quantity) + 1).toString())}
+                  disabled={isSubmitting}
                   className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-2xl text-white transition-all active:scale-90 shadow-lg shadow-blue-100"
                 >
                   <Plus className="w-6 h-6" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 w-full">
+              <div className="grid grid-cols-2 gap-3 w-full relative">
                 {(["使用", "入荷", "持出", "返却"] as StockOperation[]).map(op => (
                   <button
                     key={op}
@@ -172,7 +305,7 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                       op === '入荷' ? 'bg-white hover:bg-green-50 text-green-500 border-slate-100 hover:border-green-100' :
                       op === '持出' ? 'bg-white hover:bg-blue-50 text-blue-500 border-slate-100 hover:border-blue-100' :
                       'bg-white hover:bg-slate-50 text-slate-600 border-slate-100'
-                    }`}
+                    } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <span>{op}</span>
                     <span className="text-[10px] font-bold text-slate-400">
@@ -180,6 +313,14 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                     </span>
                   </button>
                 ))}
+
+                {/* Loading Overlay for the actions area */}
+                {isSubmitting && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-[32px] animate-in fade-in duration-200">
+                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+                    <span className="text-[11px] font-black text-blue-600 uppercase tracking-widest">データ反映中...</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -200,26 +341,48 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
               {relatedHistories.length === 0 ? (
                 <p className="text-center py-6 text-slate-300 text-sm font-bold">履歴がありません</p>
               ) : (
-                relatedHistories.map((h, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
-                          h.operation === '使用' ? 'bg-red-50 text-red-500 border-red-100' :
-                          h.operation === '入荷' ? 'bg-green-50 text-green-500 border-green-100' :
-                          'bg-white text-slate-400'
-                        }`}>{h.operation}</span>
-                        <span className="text-[11px] font-bold text-slate-400">{formatDate(h.createdAt)}</span>
+                relatedHistories.map((h, i) => {
+                  const linkedCase = getLinkedCase(h);
+                  const isDeleting = deletingId === h.rowNumber;
+                  
+                  return (
+                    <div key={i} className={`group flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 transition-all ${isDeleting ? 'opacity-50 grayscale scale-95' : ''}`}>
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
+                            h.operation === '使用' ? 'bg-red-50 text-red-500 border-red-100' :
+                            h.operation === '入荷' ? 'bg-green-50 text-green-500 border-green-100' :
+                            'bg-white text-slate-400'
+                          }`}>{h.operation}</span>
+                          <span className="text-[11px] font-bold text-slate-400">{formatDate(h.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-bold text-slate-600 truncate">{h.user}</span>
+                          {linkedCase && (
+                            <span className="text-[10px] font-black text-blue-500 flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 truncate max-w-[250px]">
+                              <Briefcase className="w-2.5 h-2.5 flex-shrink-0" />
+                              {linkedCase.clientName}: {linkedCase.title}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[12px] font-bold text-slate-600">{h.user}</span>
+                      <div className="flex items-center gap-4 ml-4">
+                        <span className={`text-sm font-black whitespace-nowrap ${
+                          h.operation === '使用' ? 'text-red-500' : h.operation === '入荷' ? 'text-green-600' : 'text-slate-600'
+                        }`}>
+                          {h.operation === '使用' ? '-' : h.operation === '入荷' ? '+' : ''}{h.quantityChange}
+                        </span>
+                        <button 
+                          onClick={() => handleDeleteHistory(h.rowNumber)}
+                          disabled={isDeleting}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          {isDeleting ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                    <span className={`text-sm font-black ${
-                      h.operation === '使用' ? 'text-red-500' : h.operation === '入荷' ? 'text-green-600' : 'text-slate-600'
-                    }`}>
-                      {h.operation === '使用' ? '-' : h.operation === '入荷' ? '+' : ''}{h.quantityChange}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

@@ -10,6 +10,7 @@ interface InventoryContextType {
   refreshing: boolean;
   refresh: () => Promise<void>;
   addHistory: (history: Partial<StockHistory>, caseId?: string, caseType?: string) => Promise<{ success: boolean; error?: string }>;
+  deleteHistory: (rowNumber: number) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -109,6 +110,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   // 履歴の追加
   const addHistory = async (history: Partial<StockHistory>, caseId?: string, caseType?: string) => {
     try {
+      // 引数として渡された値を優先し、なければオブジェクト内から抽出
+      const finalCaseId = caseId || history.caseId;
+      const finalCaseType = (caseType || history.caseType) as string;
+
       const rowData: Record<string, any> = {
         "作成日時": new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
         "ID品名": history.partId,
@@ -122,9 +127,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         "IDタケヨシ": "",
         "IDLTS": ""
       };
-
+ 
       // 案件紐付けがある場合
-      if (caseId && caseType) {
+      if (finalCaseId && finalCaseType) {
         const CASE_ID_COLUMN_MAP: Record<string, string> = {
           living: "IDリビング",
           house: "IDハウス",
@@ -133,8 +138,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
           takeyoshi: "IDタケヨシ",
           lts: "IDLTS",
         };
-        const col = CASE_ID_COLUMN_MAP[caseType];
-        if (col) rowData[col] = caseId;
+        const col = CASE_ID_COLUMN_MAP[finalCaseType];
+        if (col) {
+          rowData[col] = finalCaseId;
+        }
       }
 
       const res = await fetch("/api/cases-gas", {
@@ -157,6 +164,32 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error("Failed to add history:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 履歴の削除
+  const deleteHistory = async (rowNumber: number) => {
+    try {
+      const res = await fetch("/api/cases-gas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "deleteRow",
+          sheetName: INVENTORY_SHEETS.HISTORY,
+          rowNumber
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        await fetchData(true);
+        return { success: true };
+      } else {
+        return { success: false, error: json.error || "削除に失敗しました" };
+      }
+    } catch (error: any) {
+      console.error("Failed to delete history:", error);
       return { success: false, error: error.message };
     }
   };
@@ -187,7 +220,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       loading, 
       refreshing, 
       refresh: () => fetchData(false),
-      addHistory
+      addHistory,
+      deleteHistory
     }}>
       {children}
     </InventoryContext.Provider>
