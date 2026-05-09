@@ -12,6 +12,7 @@ interface InventoryListProps {
 
 export function InventoryList({ filter, onSelect }: InventoryListProps) {
   const { parts, loading } = useInventory();
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "適正" | "低在庫" | "欠品">("all");
 
   // 表記の揺れを吸収する正規化関数
   const normalize = (str: string) => {
@@ -22,45 +23,6 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
       .replace(/\s+/g, "")
       .toLowerCase();
   };
-
-  const filteredParts = React.useMemo(() => {
-    if (filter === "すべて") return parts;
-    if (filter === "よく使う") {
-      // 判定ロジックの厳格化：前方一致を基本とし、短すぎる一致を排除
-      return parts
-        .filter(p => {
-          const normPartId = normalize(p.id);
-          if (normPartId.length < 3) return false;
-          
-          return TOP_21_PARTS.some(name => {
-            const normName = normalize(name);
-            // どちらかがどちらかの前方一致
-            if (normPartId.startsWith(normName) || normName.startsWith(normPartId)) {
-              // 6文字以下の短い名前（ボールタップ等）の場合は、長さがほぼ一致することを要求
-              if (normPartId.length <= 6 || normName.length <= 6) {
-                return Math.abs(normPartId.length - normName.length) <= 1;
-              }
-              return true;
-            }
-            return false;
-          });
-        })
-        .sort((a, b) => {
-          const indexA = TOP_21_PARTS.findIndex(name => {
-            const nName = normalize(name);
-            const nId = normalize(a.id);
-            return nId.startsWith(nName) || nName.startsWith(nId);
-          });
-          const indexB = TOP_21_PARTS.findIndex(name => {
-            const nName = normalize(name);
-            const nId = normalize(b.id);
-            return nId.startsWith(nName) || nName.startsWith(nId);
-          });
-          return indexA - indexB;
-        });
-    }
-    return parts.filter(p => normalize(p.makerName) === normalize(filter));
-  }, [parts, filter]);
 
   const getGroupColor = (group: string) => {
     const colors = [
@@ -86,6 +48,36 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
     return { label: "適正", color: "text-blue-600", bg: "bg-white", border: "border-slate-100", icon: CheckCircle2 };
   };
 
+  const filteredParts = React.useMemo(() => {
+    const baseFiltered = filter === "すべて" ? parts : 
+                         filter === "よく使う" ? parts.filter(p => {
+                           const normPartId = normalize(p.id);
+                           if (normPartId.length < 3) return false;
+                           return TOP_21_PARTS.some(name => {
+                             const normName = normalize(name);
+                             if (normPartId.startsWith(normName) || normName.startsWith(normPartId)) {
+                               if (normPartId.length <= 6 || normName.length <= 6) {
+                                 return Math.abs(normPartId.length - normName.length) <= 1;
+                               }
+                               return true;
+                             }
+                             return false;
+                           });
+                         }).sort((a, b) => {
+                           const indexA = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(a.id) || normalize(a.id).startsWith(normalize(name)));
+                           const indexB = TOP_21_PARTS.findIndex(name => normalize(name) === normalize(b.id) || normalize(b.id).startsWith(normalize(name)));
+                           return indexA - indexB;
+                         }) : 
+                         parts.filter(p => normalize(p.makerName) === normalize(filter));
+
+    if (statusFilter === "all") return baseFiltered;
+    return baseFiltered.filter(p => {
+      const status = getStockStatus(p);
+      return status.label === statusFilter;
+    });
+  }, [parts, filter, statusFilter]);
+
+
   if (loading && parts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 opacity-30">
@@ -97,11 +89,32 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center px-1">
+      <div className="flex flex-wrap justify-between items-center gap-4 px-1">
         <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
           {filter} — {filteredParts.length} 件
         </span>
+
+        <div className="flex items-center gap-1.5 bg-white/50 p-1 rounded-2xl border border-slate-100 shadow-sm">
+          {[
+            { id: "all", label: "すべて", color: "bg-slate-100 text-slate-600" },
+            { id: "適正", label: "適正", color: "bg-blue-500 text-white shadow-blue-200" },
+            { id: "低在庫", label: "低在庫", color: "bg-amber-500 text-white shadow-amber-200" },
+            { id: "欠品", label: "欠品", color: "bg-red-500 text-white shadow-red-200" }
+          ].map((btn) => (
+            <button
+              key={btn.id}
+              onClick={() => setStatusFilter(btn.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black transition-all active:scale-95 ${
+                statusFilter === btn.id 
+                  ? `${btn.color} shadow-lg ring-2 ring-white` 
+                  : "text-slate-400 hover:bg-slate-100"
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
