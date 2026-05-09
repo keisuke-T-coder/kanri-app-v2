@@ -3,7 +3,8 @@
 import React from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { TOP_21_PARTS, PartMaster } from "../_types/schema";
-import { ChevronRight, Package, AlertCircle, TrendingDown, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Package, AlertCircle, TrendingDown, CheckCircle2, Plus, RefreshCw } from "lucide-react";
+import { NewPartModal } from "./NewPartModal";
 
 interface InventoryListProps {
   filter: string;
@@ -11,15 +12,16 @@ interface InventoryListProps {
 }
 
 export function InventoryList({ filter, onSelect }: InventoryListProps) {
-  const { parts, loading } = useInventory();
+  const { parts, loading, refreshing, refresh } = useInventory();
   const [statusFilter, setStatusFilter] = React.useState<"all" | "適正" | "低在庫" | "欠品">("all");
+  const [showNewPartModal, setShowNewPartModal] = React.useState(false);
 
   // 表記の揺れを吸収する正規化関数
   const normalize = (str: string) => {
     return str
       .replace(/[！-～]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0))
       .replace(/[（）]/g, (s) => s === "（" ? "(" : ")")
-      .replace(/[〜～ー−ｰ-]/g, "-")
+      .replace(/[〜〜ー−ｰ-]/g, "-")
       .replace(/\s+/g, "")
       .toLowerCase();
   };
@@ -95,25 +97,41 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
           {filter} — {filteredParts.length} 件
         </span>
 
-        <div className="flex items-center gap-1.5 bg-white/50 p-1 rounded-2xl border border-slate-100 shadow-sm">
-          {[
-            { id: "all", label: "すべて", color: "bg-slate-100 text-slate-600" },
-            { id: "適正", label: "適正", color: "bg-blue-500 text-white shadow-blue-200" },
-            { id: "低在庫", label: "低在庫", color: "bg-amber-500 text-white shadow-amber-200" },
-            { id: "欠品", label: "欠品", color: "bg-red-500 text-white shadow-red-200" }
-          ].map((btn) => (
-            <button
-              key={btn.id}
-              onClick={() => setStatusFilter(btn.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-[9px] font-black transition-all active:scale-95 ${
-                statusFilter === btn.id 
-                  ? `${btn.color} shadow-lg ring-2 ring-white` 
-                  : "text-slate-400 hover:bg-slate-100"
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowNewPartModal(true)}
+            className="h-8 pl-2 pr-4 bg-blue-600 text-white rounded-xl flex items-center gap-1.5 shadow-lg hover:shadow-xl transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-[10px] font-black tracking-tighter whitespace-nowrap">新規部品</span>
+          </button>
+          <button 
+            onClick={refresh}
+            disabled={refreshing}
+            className={`w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-200 transition-all active:scale-95 ${refreshing ? "opacity-30" : "hover:bg-slate-50"}`}
+          >
+            <RefreshCw className={`w-4 h-4 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <div className="flex items-center gap-1.5 bg-white/50 p-1 rounded-2xl border border-slate-100 shadow-sm ml-2">
+            {[
+              { id: "all", label: "すべて", color: "bg-slate-100 text-slate-600" },
+              { id: "適正", label: "適正", color: "bg-blue-500 text-white shadow-blue-200" },
+              { id: "低在庫", label: "低在庫", color: "bg-amber-500 text-white shadow-amber-200" },
+              { id: "欠品", label: "欠品", color: "bg-red-500 text-white shadow-red-200" }
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => setStatusFilter(btn.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-[9px] font-black transition-all active:scale-95 ${
+                  statusFilter === btn.id 
+                    ? `${btn.color} shadow-lg ring-2 ring-white` 
+                    : "text-slate-400 hover:bg-slate-100"
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -184,6 +202,12 @@ export function InventoryList({ filter, onSelect }: InventoryListProps) {
           })
         )}
       </div>
+
+      {showNewPartModal && (
+        <NewPartModal 
+          onClose={() => setShowNewPartModal(false)} 
+        />
+      )}
     </div>
   );
 }

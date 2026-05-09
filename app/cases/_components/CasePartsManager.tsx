@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { CaseItem } from "../_types/schema";
 import { useInventory } from "../../inventory/_context/InventoryContext";
-import { Package, Plus, History, Loader2, X, Search, Check } from "lucide-react";
+import { Package, Plus, History, Loader2, X, Search, Check, Trash2 } from "lucide-react";
 import { StockOperation } from "../../inventory/_types/schema";
 
 interface CasePartsManagerProps {
@@ -20,7 +20,7 @@ const OPERATION_COLORS: Record<string, string> = {
 const ASSIGNEES = ["佐藤", "田中", "南", "新田", "徳重"];
 
 export function CasePartsManager({ item }: CasePartsManagerProps) {
-  const { parts, histories, addHistory, loading, refreshing } = useInventory();
+  const { parts, histories, addHistory, deleteHistory, loading, refreshing } = useInventory();
   const [isRegistering, setIsRegistering] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPartId, setSelectedPartId] = useState("");
@@ -28,6 +28,7 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedUser, setSelectedUser] = useState(item.assignee || "徳重");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // 案件に紐づく履歴の抽出
   const caseHistories = useMemo(() => {
@@ -91,6 +92,22 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
     }
   };
 
+  const handleDelete = async (rowNumber: number) => {
+    if (!window.confirm("この履歴を削除してもよろしいですか？（在庫数に影響します）")) return;
+    
+    setDeletingId(rowNumber);
+    try {
+      const result = await deleteHistory(rowNumber);
+      if (!result.success) {
+        alert(result.error || "削除に失敗しました");
+      }
+    } catch (e) {
+      alert("エラーが発生しました");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* 履歴セクション */}
@@ -116,7 +133,7 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
         ) : (
           <div className="space-y-3">
             {caseHistories.map((h, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-black/[0.02] rounded-2xl border border-black/[0.02]">
+              <div key={i} className="group flex items-center justify-between p-3 bg-black/[0.02] rounded-2xl border border-black/[0.02] transition-all">
                 <div className="flex-1 min-w-0 pr-4">
                   <div className="flex items-center space-x-2 mb-1">
                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${OPERATION_COLORS[h.operation]}`}>
@@ -130,13 +147,22 @@ export function CasePartsManager({ item }: CasePartsManagerProps) {
                     {h.partId}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-black text-slate-800">
-                    {h.quantityChange} <span className="text-[10px] text-slate-400">個</span>
+                <div className="flex items-center space-x-3 shrink-0">
+                  <div className="text-right">
+                    <div className="text-sm font-black text-slate-800">
+                      {h.quantityChange} <span className="text-[10px] text-slate-400">個</span>
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-400">
+                      {h.user}
+                    </div>
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400">
-                    {h.user}
-                  </div>
+                  <button 
+                    onClick={() => handleDelete(h.rowNumber)}
+                    disabled={deletingId === h.rowNumber}
+                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-30"
+                  >
+                    {deletingId === h.rowNumber ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
               </div>
             ))}

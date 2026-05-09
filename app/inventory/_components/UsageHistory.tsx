@@ -3,14 +3,15 @@
 import React, { useState } from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { StockOperation } from "../_types/schema";
-import { Search, Filter, History as HistoryIcon, Clock, User, Briefcase } from "lucide-react";
+import { Search, Filter, History as HistoryIcon, Clock, User, Briefcase, Trash2, Loader2 } from "lucide-react";
 import { useCases } from "../../cases/_context/CasesContext";
 
 export function UsageHistory() {
-  const { histories, loading } = useInventory();
+  const { histories, deleteHistory, loading } = useInventory();
   const { allCases } = useCases();
   const [query, setQuery] = useState("");
   const [opFilter, setOpFilter] = useState<StockOperation | "すべて">("すべて");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const CLIENTS = [
     { id: "living", name: "リビング" },
@@ -34,6 +35,22 @@ export function UsageHistory() {
       }
     }
     return null;
+  };
+
+  const handleDelete = async (rowNumber: number) => {
+    if (!window.confirm("この履歴を削除してもよろしいですか？（在庫数に影響します）")) return;
+    
+    setDeletingId(rowNumber);
+    try {
+      const result = await deleteHistory(rowNumber);
+      if (!result.success) {
+        alert(result.error || "削除に失敗しました");
+      }
+    } catch (e) {
+      alert("エラーが発生しました");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filteredHistories = React.useMemo(() => {
@@ -121,7 +138,7 @@ export function UsageHistory() {
           filteredHistories.map((h, idx) => (
             <div 
               key={`${h.partId}-${idx}`}
-              className="bg-white rounded-[22px] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-white flex flex-col gap-3"
+              className="group bg-white rounded-[22px] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-white flex flex-col gap-3 transition-all"
             >
               <div className="flex justify-between items-start">
                 <div className="flex flex-col gap-1">
@@ -152,11 +169,20 @@ export function UsageHistory() {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className={`text-lg font-black ${h.operation === '使用' ? 'text-red-500' : h.operation === '入荷' ? 'text-green-600' : 'text-slate-600'}`}>
-                    {h.operation === '使用' ? '-' : h.operation === '入荷' ? '+' : ''}{h.quantityChange}
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-300 uppercase">個数</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-end">
+                    <span className={`text-lg font-black ${h.operation === '使用' ? 'text-red-500' : h.operation === '入荷' ? 'text-green-600' : 'text-slate-600'}`}>
+                      {h.operation === '使用' ? '-' : h.operation === '入荷' ? '+' : ''}{h.quantityChange}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-300 uppercase">個数</span>
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(h.rowNumber)}
+                    disabled={deletingId === h.rowNumber}
+                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-30"
+                  >
+                    {deletingId === h.rowNumber ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             </div>

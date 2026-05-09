@@ -375,7 +375,7 @@ export function PartDetails({ part, onClose }: PartDetailsProps) {
                         <button 
                           onClick={() => handleDeleteHistory(h.rowNumber)}
                           disabled={isDeleting}
-                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                         >
                           {isDeleting ? <Loader2 className="w-4 h-4 animate-spin text-red-500" /> : <Trash2 className="w-4 h-4" />}
                         </button>

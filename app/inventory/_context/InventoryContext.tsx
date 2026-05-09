@@ -11,6 +11,7 @@ interface InventoryContextType {
   refresh: () => Promise<void>;
   addHistory: (history: Partial<StockHistory>, caseId?: string, caseType?: string) => Promise<{ success: boolean; error?: string }>;
   deleteHistory: (rowNumber: number) => Promise<{ success: boolean; error?: string }>;
+  addPartMaster: (partData: { id: string, makerId: string, group: string, initialStock: number }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -194,6 +195,45 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // 部品マスタの新規追加
+  const addPartMaster = async (partData: { id: string, makerId: string, group: string, initialStock: number }) => {
+    // 既存チェック (ID品名はユニークである必要がある)
+    if (parts.some(p => p.id.trim() === partData.id.trim())) {
+      return { success: false, error: "同じ名前の部品が既に登録されています" };
+    }
+
+    try {
+      const rowData: Record<string, any> = {
+        "ID品名": partData.id,
+        "メーカー": partData.makerId,
+        "グループ": partData.group,
+        "初期在庫": partData.initialStock
+      };
+
+      const res = await fetch("/api/cases-gas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "addRow",
+          sheetName: INVENTORY_SHEETS.MASTER,
+          rowData
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        // 成功したらデータを再取得
+        await fetchData(true);
+        return { success: true };
+      } else {
+        return { success: false, error: json.error || "登録に失敗しました" };
+      }
+    } catch (error: any) {
+      console.error("Failed to add master part:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // 初回起動時: キャッシュを即表示し、裏で更新
   useEffect(() => {
     const cached = localStorage.getItem(CACHE_KEY);
@@ -221,7 +261,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       refreshing, 
       refresh: () => fetchData(false),
       addHistory,
-      deleteHistory
+      deleteHistory,
+      addPartMaster
     }}>
       {children}
     </InventoryContext.Provider>
