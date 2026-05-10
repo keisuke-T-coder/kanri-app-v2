@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ClientId, Status, CLIENT_TABS } from "../_types/schema";
-import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus, MessageCircle, Share2, Copy } from "lucide-react";
 import { useCases } from "../_context/CasesContext";
 import { CasePartsManager } from "./CasePartsManager";
 
@@ -38,6 +38,8 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
   const [mailCopied, setMailCopied] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState(ASSIGNEES[0]);
   const [quickInputText, setQuickInputText] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const { prevItem, nextItem } = useMemo(() => {
     const from = activeClient;
@@ -195,6 +197,65 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
     window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailText)}`;
   };
 
+  const buildCaseShareText = () => {
+    const row = item.rawData || {};
+    const sheetInfo = CLIENT_TABS.find(t => t.id === item.clientId);
+    const sheetName = sheetInfo?.sheetName || "";
+    const sheetNoMatch = sheetName.match(/\d+/);
+    const sheetNoInt = sheetNoMatch ? parseInt(sheetNoMatch[0]) : 5;
+
+    const caseTitle =
+      row["物件名"] ||
+      row["案件名"] ||
+      row["施主名"] ||
+      row["現場名"] ||
+      row["名前"] ||
+      item.title ||
+      "";
+
+    const address =
+      row["住所"] ||
+      row["所在地"] ||
+      row["現場住所"] ||
+      item.address ||
+      "";
+
+    const detail =
+      sheetNoInt === 13
+        ? row["内容"] || ""
+        : row["不具合内容"] || "";
+
+    return `【${caseTitle}】
+
+[${address}]
+
+【詳細】
+${detail}`;
+  };
+
+  const handleShare = async () => {
+    const text = buildCaseShareText();
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: text
+        });
+      } catch (err) {
+        console.error("Share failed:", err);
+      }
+    } else {
+      const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+      window.open(lineUrl, "_blank");
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildCaseShareText());
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
   const handleQuickAppend = async () => {
     if (!quickInputText.trim() || !item) return;
     const now = new Date();
@@ -343,9 +404,18 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
           </div>
         </div>
 
-        <button onClick={generateReportEmail} className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white"}`}>
-          {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
-        </button>
+        <div className="space-y-3">
+          <button 
+            onClick={() => setIsShareModalOpen(true)}
+            className="w-full flex items-center justify-center py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm shadow-sm active:scale-95 transition-all"
+          >
+            <MessageCircle className="w-5 h-5 mr-2 text-[#06C755]" />
+            <span>案件内容を共有</span>
+          </button>
+          <button onClick={generateReportEmail} className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white"}`}>
+            {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
+          </button>
+        </div>
       </main>
 
       {/* Navigation Buttons (Floating) */}
@@ -365,6 +435,60 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
       </div>
 
       <style jsx>{` .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); } `}</style>
+
+      {/* Share Confirmation Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl border border-black/5 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-black/5 flex items-center justify-between bg-[#f8f6f0]/50">
+              <h3 className="text-sm font-black text-slate-800">共有内容の確認</h3>
+              <button onClick={() => setIsShareModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Preview */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">送信メッセージ</label>
+                <div className="bg-slate-50 rounded-3xl p-5 text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap relative border border-slate-100">
+                  <div className="absolute top-0 right-0 p-3 opacity-5">
+                    <MessageCircle className="w-12 h-12 text-slate-900" />
+                  </div>
+                  {buildCaseShareText()}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handleCopy}
+                  className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[28px] border-2 transition-all active:scale-95 ${
+                    copyFeedback ? "border-green-500 bg-green-50 text-green-600" : "border-slate-100 bg-white text-slate-600"
+                  }`}
+                >
+                  {copyFeedback ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5 text-slate-400" />}
+                  <span className="text-[10px] font-black">{copyFeedback ? "コピー完了" : "文章をコピー"}</span>
+                </button>
+                <button 
+                  onClick={handleShare}
+                  className="flex flex-col items-center justify-center gap-2 py-4 bg-[#06C755] text-white rounded-[28px] shadow-xl shadow-[#06C755]/10 active:scale-95 transition-all"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="text-[10px] font-black">LINEで共有</span>
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="w-full py-3 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
