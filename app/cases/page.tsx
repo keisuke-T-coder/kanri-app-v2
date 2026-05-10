@@ -5,6 +5,7 @@ import { BottomNavigation } from "./_components/BottomNavigation";
 import { CaseList } from "./_components/CaseList";
 import { CaseSearch } from "./_components/CaseSearch";
 import { CaseTools } from "./_components/CaseTools";
+import { CaseNotificationAlert } from "./_components/CaseNotificationAlert";
 import { CaseDetailOverlay } from "./_components/CaseDetailOverlay";
 
 import { RefreshCw } from "lucide-react";
@@ -31,10 +32,10 @@ export default function CasesHomePage() {
         {activeTab === "list" && <CaseList />}
         {activeTab === "search" && <CaseSearch />}
         {activeTab === "tools" && <CaseTools />}
+        
+        {/* Persistent Bottom Navigation */}
+        <BottomNavigation />
       </main>
-
-      {/* Persistent Bottom Navigation */}
-      <BottomNavigation />
 
       {/* Case Detail Overlay */}
       {selectedCase && (

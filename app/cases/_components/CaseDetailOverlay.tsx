@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ClientId, Status, CLIENT_TABS, CaseItem } from "../_types/schema";
-import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus, MessageCircle, Share2, Copy } from "lucide-react";
 import { useCases } from "../_context/CasesContext";
 import { CasePartsManager } from "./CasePartsManager";
 
@@ -38,6 +38,8 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
   const [mailCopied, setMailCopied] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState(ASSIGNEES[0]);
   const [quickInputText, setQuickInputText] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   const { prevItem, nextItem } = useMemo(() => {
     const from = activeClient;
@@ -168,31 +170,156 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
     const lines = combinedText.split("\n");
     let entries: { date: string, content: string }[] = [];
     let currentEntry: { date: string, content: string } | null = null;
+    
+    // 日付形式の解析を強化 (M/D, MM/DD, YYYY/M/D などに対応)
+    const datePattern = /(\d{1,4}\/)?\d{1,2}\/\d{1,2}/;
+    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      const dateMatch = line.match(/^[^\d]*(\d{1,2}\/\d{1,2})[>| ]/);
-      if (dateMatch) {
+      
+      const match = line.match(new RegExp(`^[^\\d]*(${datePattern.source})[>| ]`));
+      if (match) {
         if (currentEntry) entries.push(currentEntry);
-        currentEntry = { date: dateMatch[1], content: line.substring(line.search(/\d{1,2}\/\d{1,2}/) + dateMatch[1].length + 1).trim() };
-      } else if (currentEntry) { currentEntry.content += (currentEntry.content ? "\n" : "") + line; }
+        // 日付部分を除去して内容を抽出
+        const dateStr = match[1];
+        const contentPart = line.substring(line.indexOf(dateStr) + dateStr.length).replace(/^[>| ]+/, "").trim();
+        currentEntry = { date: dateStr, content: contentPart };
+      } else if (currentEntry) {
+        currentEntry.content += (currentEntry.content ? "\n" : "") + line;
+      }
     }
     if (currentEntry) entries.push(currentEntry);
+
     const stripSyms = (str: string) => str.replace(/[🥎⭕️📣📢]/g, "").trim();
-    const todayEntry = entries.find(e => e.date === todayKey || e.date === todayKeyFull);
+    
+    // 今日の日付文字列（比較用）
+    const todaySimple = `${now.getMonth() + 1}/${now.getDate()}`;
+    const todayFull = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+    const todayPadded = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
+    
+    const todayEntry = entries.find(e => 
+      e.date.includes(todaySimple) || 
+      e.date.includes(todayFull) || 
+      e.date.includes(todayPadded)
+    );
+
     const title = stripSyms(item.title || "");
     const address = stripSyms(item.address || "");
     const assignee = stripSyms(item.assignee || "");
-    const workContent = stripSyms(todayEntry?.content || (entries.length > 0 ? entries[entries.length - 1].content : (item.content || "")));
+    
+    // 作業内容は、今日の分があればそれ、なければ最後の履歴、それもなければcontent
+    let workContent = stripSyms(todayEntry?.content || (entries.length > 0 ? entries[entries.length - 1].content : (item.content || "")));
+    
     let photoUrl = (item.rawData?.["Googleフォト"] || item.rawData?.["URL"] || "").trim();
-    if (!photoUrl) { const urlMatch = combinedText.match(/https:\/\/photos\.app\.goo\.gl\/[a-zA-Z0-9]+/); if (urlMatch) photoUrl = urlMatch[0]; }
-    const emailText = `▪️様(担当 ${assignee})${item.status}\n住所:${address}\n物件名:${title}\n作業日時:${todayStr}\n作業内容:${workContent}\n作業状況:画像\n${photoUrl}\n`;
-    navigator.clipboard.writeText(emailText);
+    if (!photoUrl) {
+      const urlMatch = combinedText.match(/https:\/\/photos\.app\.goo\.gl\/[a-zA-Z0-9]+/);
+      if (urlMatch) photoUrl = urlMatch[0];
+    }
+
+    const emailBodyTemplate = (content: string) => 
+      `▪️様(担当 ${assignee})${item.status}\n住所:${address}\n物件名:${title}\n作業日時:${todayStr}\n作業内容:${content}\n作業状況:画像\n${photoUrl}\n`;
+
+    const fullEmailText = emailBodyTemplate(workContent);
+    
+    // クリップボードには常に全文化された内容を保存
+    navigator.clipboard.writeText(fullEmailText);
     setMailCopied(true);
     setTimeout(() => setMailCopied(false), 2000);
+
     const recipient = "takeyoshi2008@hotmail.co.jp";
     const subject = `【報告】${title}様 (${item.status})`;
-    window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailText)}`;
+
+    try {
+      const safeSubject = typeof subject.toWellFormed === "function" ? subject.toWellFormed() : subject;
+      const safeBody = typeof fullEmailText.toWellFormed === "function" ? fullEmailText.toWellFormed() : fullEmailText;
+      
+      let mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent(safeBody)}`;
+      
+      // iOS Mail等の制限（約2000-3000文字）を考慮
+      if (mailtoUrl.length > 2500) {
+        // 長すぎる場合は作業内容を切り詰める (末尾から1000文字程度に制限)
+        const truncatedWorkContent = workContent.length > 1000 
+          ? "...\n" + workContent.substring(workContent.length - 1000) 
+          : workContent;
+        
+        const truncatedBody = emailBodyTemplate(truncatedWorkContent);
+        const safeTruncatedBody = typeof truncatedBody.toWellFormed === "function" ? truncatedBody.toWellFormed() : truncatedBody;
+        
+        mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent(safeTruncatedBody)}`;
+        
+        // それでも長い場合は、最終手段として固定文面
+        if (mailtoUrl.length > 3000) {
+          window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent("報告内容が長いため、クリップボードの内容を貼り付けて送信してください。")}`;
+        } else {
+          window.location.href = mailtoUrl;
+        }
+      } else {
+        window.location.href = mailtoUrl;
+      }
+    } catch (err) {
+      console.error("Mailto generation failed:", err);
+      alert("メールアプリの起動に失敗しました。本文はコピーされています。");
+    }
+  };
+
+  const buildCaseShareText = () => {
+    const row = item.rawData || {};
+    const sheetInfo = CLIENT_TABS.find(t => t.id === item.clientId);
+    const sheetName = sheetInfo?.sheetName || "";
+    const sheetNoMatch = sheetName.match(/\d+/);
+    const sheetNoInt = sheetNoMatch ? parseInt(sheetNoMatch[0]) : 5;
+
+    const caseTitle =
+      row["物件名"] ||
+      row["案件名"] ||
+      row["施主名"] ||
+      row["現場名"] ||
+      row["名前"] ||
+      item.title ||
+      "";
+
+    const address =
+      row["住所"] ||
+      row["所在地"] ||
+      row["現場住所"] ||
+      item.address ||
+      "";
+
+    const detail =
+      sheetNoInt === 13
+        ? row["内容"] || ""
+        : row["不具合内容"] || "";
+
+    return `【${caseTitle}】
+
+[${address}]
+
+【詳細】
+${detail}`;
+  };
+
+  const handleShare = async () => {
+    const text = buildCaseShareText();
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: text
+        });
+      } catch (err) {
+        console.error("Share failed:", err);
+      }
+    } else {
+      const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+      window.open(lineUrl, "_blank");
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildCaseShareText());
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
   };
 
   const handleQuickAppend = async () => {
@@ -343,9 +470,18 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
           </div>
         </div>
 
-        <button onClick={generateReportEmail} className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white"}`}>
-          {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
-        </button>
+        <div className="space-y-3">
+          <button 
+            onClick={() => setIsShareModalOpen(true)}
+            className="w-full flex items-center justify-center py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm shadow-sm active:scale-95 transition-all"
+          >
+            <MessageCircle className="w-5 h-5 mr-2 text-[#06C755]" />
+            <span>案件内容を共有</span>
+          </button>
+          <button onClick={generateReportEmail} className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white"}`}>
+            {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
+          </button>
+        </div>
       </main>
 
       {/* Navigation Buttons (Floating) */}
@@ -365,6 +501,60 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
       </div>
 
       <style jsx>{` .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); } `}</style>
+
+      {/* Share Confirmation Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl border border-black/5 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-black/5 flex items-center justify-between bg-[#f8f6f0]/50">
+              <h3 className="text-sm font-black text-slate-800">共有内容の確認</h3>
+              <button onClick={() => setIsShareModalOpen(false)} className="p-2 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Preview */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">送信メッセージ</label>
+                <div className="bg-slate-50 rounded-3xl p-5 text-xs font-bold text-slate-600 leading-relaxed whitespace-pre-wrap relative border border-slate-100">
+                  <div className="absolute top-0 right-0 p-3 opacity-5">
+                    <MessageCircle className="w-12 h-12 text-slate-900" />
+                  </div>
+                  {buildCaseShareText()}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handleCopy}
+                  className={`flex flex-col items-center justify-center gap-2 py-4 rounded-[28px] border-2 transition-all active:scale-95 ${
+                    copyFeedback ? "border-green-500 bg-green-50 text-green-600" : "border-slate-100 bg-white text-slate-600"
+                  }`}
+                >
+                  {copyFeedback ? <CheckCircle2 className="w-5 h-5" /> : <Copy className="w-5 h-5 text-slate-400" />}
+                  <span className="text-[10px] font-black">{copyFeedback ? "コピー完了" : "文章をコピー"}</span>
+                </button>
+                <button 
+                  onClick={handleShare}
+                  className="flex flex-col items-center justify-center gap-2 py-4 bg-[#06C755] text-white rounded-[28px] shadow-xl shadow-[#06C755]/10 active:scale-95 transition-all"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="text-[10px] font-black">LINEで共有</span>
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="w-full py-3 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
