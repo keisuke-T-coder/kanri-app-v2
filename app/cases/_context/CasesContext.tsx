@@ -32,6 +32,8 @@ interface CasesContextType {
   showNotificationAlert: boolean;
   setShowNotificationAlert: (show: boolean) => void;
   alertCases: CaseItem[];
+  isNotificationEnabled: boolean;
+  setIsNotificationEnabled: (enabled: boolean) => void;
   refreshAll: () => Promise<void>;
 }
 
@@ -63,6 +65,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<CasesTab>("list");
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
+  const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
   const fetchedRef = useRef(false);
 
@@ -80,6 +83,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
         if (state.searchStatus) setSearchStatus(state.searchStatus);
         if (state.activeTab) setActiveTab(state.activeTab);
         if (state.selectedCase) setSelectedCase(state.selectedCase);
+        if (state.isNotificationEnabled !== undefined) setIsNotificationEnabled(state.isNotificationEnabled);
         
         // データの復元 (非常に大きい場合は注意が必要だが、数千件程度ならlocalStorageで可能)
         if (state.allCases && Object.keys(state.allCases).length > 0) {
@@ -99,17 +103,17 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
     const state = { 
       activeClient, statusFilter, symbolFilter, searchQuery, 
       searchClient, searchStatus, activeTab, selectedCase,
-      allCases // データも保存
+      allCases, isNotificationEnabled // データも保存
     };
     try {
       localStorage.setItem("cases_app_state", JSON.stringify(state));
     } catch (e) {
       // 容量オーバーの場合はデータ抜きで保存
       console.warn("LocalStorage full, saving without data cache");
-      const minimalState = { activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase };
+      const minimalState = { activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase, isNotificationEnabled };
       localStorage.setItem("cases_app_state", JSON.stringify(minimalState));
     }
-  }, [activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase, allCases]);
+  }, [activeClient, statusFilter, symbolFilter, searchQuery, searchClient, searchStatus, activeTab, selectedCase, allCases, isNotificationEnabled]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
@@ -166,7 +170,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
         .flatMap(([_, cases]) => cases)
         .filter(item => item.title.includes("🥎") && item.status !== "完了");
       
-      if (alertItems.length > 0) {
+      if (alertItems.length > 0 && isNotificationEnabled) {
         setShowNotificationAlert(true);
       }
     } catch (err: any) {
@@ -193,7 +197,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
           .flatMap(([_, cases]) => cases)
           .filter(item => item.title.includes("🥎") && item.status !== "完了");
           
-        if (alertItems.length > 0) {
+        if (alertItems.length > 0 && isNotificationEnabled) {
           setShowNotificationAlert(true);
         }
       }
@@ -201,7 +205,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [allCases]);
+  }, [allCases, isNotificationEnabled]);
 
   // 🥎付き案件の抽出 (完了分は除外、重複防止のためpriorityタブは含めない)
   const alertCases = React.useMemo(() => {
@@ -269,6 +273,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       activeTab, setActiveTab,
       selectedCase, setSelectedCase,
       showNotificationAlert, setShowNotificationAlert,
+      isNotificationEnabled, setIsNotificationEnabled,
       alertCases,
       updateCaseStatus, updateCaseContent, updateCaseFields, 
       refreshAll: fetchAllData 

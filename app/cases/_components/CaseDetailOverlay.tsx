@@ -346,10 +346,16 @@ ${detail}`;
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#f8f6f0] overflow-y-auto animate-in slide-in-from-right duration-300 no-scrollbar">
       {/* Header */}
       <div className="sticky top-0 z-10 glass border-b border-black/5 p-4 flex items-center justify-between">
-        <button onClick={onClose} className="flex items-center space-x-1 px-3 py-2 text-slate-500 hover:text-primary transition-colors bg-white/50 rounded-xl border border-black/5">
-          <ChevronLeft className="w-4 h-4" />
-          <span className="text-xs font-black">一覧へ戻る</span>
-        </button>
+        <div className="relative group">
+          <div className="absolute top-12 left-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+            詳細を閉じて一覧に戻る
+            <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-800 rotate-45"></div>
+          </div>
+          <button onClick={onClose} className="flex items-center space-x-1 px-3 py-2 text-slate-500 hover:text-primary transition-colors bg-white/50 rounded-xl border border-black/5">
+            <ChevronLeft className="w-4 h-4" />
+            <span className="text-xs font-black">一覧へ戻る</span>
+          </button>
+        </div>
         <h1 className="ml-2 text-[13px] font-black text-slate-800 tracking-tight truncate flex-1 text-right">
           {item.title}様
         </h1>
@@ -366,9 +372,15 @@ ${detail}`;
             </div>
             <div className="flex space-x-2">
               {!isEditingHeader ? (
-                <button onClick={handleHeaderEditClick} className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors shadow-sm bg-white/50 border border-black/5">
-                  <Edit2 className="w-3 h-3" />
-                </button>
+                <div className="relative group">
+                  <div className="absolute -top-10 right-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                    物件名や住所を編集
+                    <div className="absolute -bottom-1 right-3 w-2 h-2 bg-slate-800 rotate-45"></div>
+                  </div>
+                  <button onClick={handleHeaderEditClick} className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors shadow-sm bg-white/50 border border-black/5">
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                </div>
               ) : (
                 <div className="flex space-x-1">
                   <button onClick={handleHeaderSave} disabled={updating} className="p-2 text-green-500 hover:bg-green-50 rounded-full transition-colors disabled:opacity-30">
@@ -415,9 +427,15 @@ ${detail}`;
                   {["🥎", "⭕️", "📣", "📢"].map((sym) => {
                     const hasSym = item.title?.includes(sym);
                     return (
-                      <button key={sym} onClick={() => handleToggleSymbol(sym)} disabled={updating} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-90 ${hasSym ? "bg-white shadow-sm border border-black/5" : "opacity-40"}`}>
-                        <span className="text-xl">{sym}</span>
-                      </button>
+                      <div key={sym} className="relative group">
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                          案件名に {sym} を追加/削除
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                        </div>
+                        <button onClick={() => handleToggleSymbol(sym)} disabled={updating} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-90 ${hasSym ? "bg-white shadow-sm border border-black/5" : "opacity-40"}`}>
+                          <span className="text-xl">{sym}</span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -429,10 +447,16 @@ ${detail}`;
                 </div>
                 {item.address && (
                   <div className="pl-7">
-                    <button onClick={handleMapsClick} className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all group active:scale-95">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4285F4] via-[#34A853] to-[#FBBC05] flex items-center justify-center mr-3"><Navigation className="w-4 h-4 text-white" /></div>
-                      <div className="text-left"><div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Navigation</div><div className="text-xs font-black text-slate-700">Googleマップ</div></div>
-                    </button>
+                    <div className="relative group inline-block">
+                      <div className="absolute -top-10 left-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                        Googleマップで現場へのルートを確認
+                        <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-800 rotate-45"></div>
+                      </div>
+                      <button onClick={handleMapsClick} className="inline-flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all group active:scale-95">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4285F4] via-[#34A853] to-[#FBBC05] flex items-center justify-center mr-3"><Navigation className="w-4 h-4 text-white" /></div>
+                        <div className="text-left"><div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Navigation</div><div className="text-xs font-black text-slate-700">Googleマップ</div></div>
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div className="flex items-center text-slate-500"><User className="w-4 h-4 mr-3 opacity-40" /><span className="text-sm font-bold">{item.assignee || "未割当"}</span></div>
@@ -445,7 +469,17 @@ ${detail}`;
         <div className="glass rounded-3xl p-6 shadow-sm border border-black/5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center text-slate-400"><FileText className="w-4 h-4 mr-2 opacity-60" /><span className="text-xs font-bold uppercase tracking-widest">詳細</span></div>
-            {!isEditingContent ? (<button onClick={handleEditClick} className="p-2 text-slate-600 bg-white/50 border border-black/5 rounded-full shadow-sm"><Edit2 className="w-4 h-4" /></button>) : (
+            {!isEditingContent ? (
+              <div className="relative group">
+                <div className="absolute -top-10 right-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                  詳細内容を編集
+                  <div className="absolute -bottom-1 right-3 w-2 h-2 bg-slate-800 rotate-45"></div>
+                </div>
+                <button onClick={handleEditClick} className="p-2 text-slate-600 bg-white/50 border border-black/5 rounded-full shadow-sm">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
               <div className="flex space-x-1">
                 <button onClick={handleContentSave} disabled={updating} className="p-2 text-green-500">{updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}</button>
                 <button onClick={() => setIsEditingContent(false)} disabled={updating} className="p-2 text-red-400"><X className="w-4 h-4" /></button>
@@ -466,21 +500,45 @@ ${detail}`;
           </div>
           <div className="flex space-x-2">
             <input type="text" value={quickInputText} onChange={(e) => setQuickInputText(e.target.value)} placeholder="追記する内容を入力..." className="flex-1 p-4 bg-white border border-slate-400 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
-            <button onClick={handleQuickAppend} disabled={updating || !quickInputText.trim()} className="px-6 py-4 bg-slate-800 text-white rounded-2xl text-xs font-black">追記</button>
+            <div className="relative group">
+              <div className="absolute -top-10 right-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                担当記号付きで履歴に追記
+                <div className="absolute -bottom-1 right-5 w-2 h-2 bg-slate-800 rotate-45"></div>
+              </div>
+              <button onClick={handleQuickAppend} disabled={updating || !quickInputText.trim()} className="px-6 py-4 bg-slate-800 text-white rounded-2xl text-xs font-black h-full">追記</button>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <button 
-            onClick={() => setIsShareModalOpen(true)}
-            className="w-full flex items-center justify-center py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm shadow-sm active:scale-95 transition-all"
-          >
-            <MessageCircle className="w-5 h-5 mr-2 text-[#06C755]" />
-            <span>案件内容を共有</span>
-          </button>
-          <button onClick={generateReportEmail} className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white"}`}>
-            {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
-          </button>
+        <div className="space-y-3 pt-4">
+          {/* 案件内容を共有 */}
+          <div className="relative group">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+              案件名、住所、詳細を整形してLINE等で共有・コピー
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+            </div>
+            <button 
+              onClick={() => setIsShareModalOpen(true)}
+              className="w-full flex items-center justify-center py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-sm shadow-sm active:scale-95 transition-all hover:bg-slate-50"
+            >
+              <MessageCircle className="w-5 h-5 mr-2 text-[#06C755]" />
+              <span>案件内容を共有</span>
+            </button>
+          </div>
+
+          {/* 完了報告メール作成 */}
+          <div className="relative group">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#6366f1] text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+              本日の作業報告をメール形式で生成し、全文をコピー
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#6366f1] rotate-45"></div>
+            </div>
+            <button 
+              onClick={generateReportEmail} 
+              className={`w-full flex items-center justify-center py-4 rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all ${mailCopied ? "bg-green-500 text-white" : "bg-[#6366f1] text-white hover:opacity-90"}`}
+            >
+              {mailCopied ? <><Check className="w-5 h-5 mr-2" /> コピー完了</> : <><Mail className="w-5 h-5 mr-2" /> 完了報告メール作成</>}
+            </button>
+          </div>
         </div>
       </main>
 
