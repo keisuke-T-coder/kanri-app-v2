@@ -66,19 +66,31 @@ export function CaseNotificationAlert() {
 
         {/* Actions */}
         <div className="p-8 bg-white border-t border-slate-50 grid grid-cols-2 gap-4">
-          <button 
-            onClick={() => setShowNotificationAlert(false)}
-            className="flex items-center justify-center gap-2 py-5 bg-slate-100 text-slate-600 rounded-[28px] font-black text-sm active:scale-95 transition-all"
-          >
-            <span>✅ 確認した</span>
-          </button>
-          <button 
-            onClick={handleSeeCases}
-            className="flex items-center justify-center gap-2 py-5 bg-red-600 text-white rounded-[28px] font-black text-sm shadow-xl shadow-red-100 active:scale-95 transition-all"
-          >
-            <span>案件を見る</span>
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="relative group">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+              このアラートを一旦閉じます
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+            </div>
+            <button 
+              onClick={() => setShowNotificationAlert(false)}
+              className="w-full flex items-center justify-center gap-2 py-5 bg-slate-100 text-slate-600 rounded-[28px] font-black text-sm active:scale-95 transition-all"
+            >
+              <span>✅ 確認した</span>
+            </button>
+          </div>
+          <div className="relative group">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-600 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+              優先案件の一覧画面へ移動
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-red-600 rotate-45"></div>
+            </div>
+            <button 
+              onClick={handleSeeCases}
+              className="w-full flex items-center justify-center gap-2 py-5 bg-red-600 text-white rounded-[28px] font-black text-sm shadow-xl shadow-red-100 active:scale-95 transition-all"
+            >
+              <span>案件を見る</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

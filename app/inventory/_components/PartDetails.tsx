@@ -194,9 +194,15 @@ ${part.id} × ${orderQuantity}
               <h2 className="text-[20px] font-black text-slate-800 leading-tight">{part.id}</h2>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 transition-all active:scale-90">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="relative group">
+            <div className="absolute -top-12 right-0 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+              詳細を閉じて一覧に戻る
+              <div className="absolute -bottom-1 right-5 w-2 h-2 bg-slate-800 rotate-45"></div>
+            </div>
+            <button onClick={onClose} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 transition-all active:scale-90">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="p-8 space-y-10">
@@ -258,16 +264,20 @@ ${part.id} × ${orderQuantity}
                   <CheckCircle2 className="w-5 h-5 text-blue-500" />
                 </div>
               ) : !selectedClient ? (
-                /* Step 1: Client Selection */
                 <div className="grid grid-cols-3 gap-2">
                   {CLIENTS.map(client => (
-                    <button
-                      key={client.id}
-                      onClick={() => setSelectedClient(client.id)}
-                      className="py-3 px-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
-                    >
-                      {client.name}
-                    </button>
+                    <div key={client.id} className="relative group">
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                        {client.name}の案件に紐付ける
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedClient(client.id)}
+                        className="w-full py-3 px-2 bg-white border border-slate-200 rounded-xl text-[11px] font-black text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-all active:scale-95 shadow-sm"
+                      >
+                        {client.name}
+                      </button>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -304,13 +314,19 @@ ${part.id} × ${orderQuantity}
             <div className="flex flex-col items-center gap-8">
               {/* Rich Stepper */}
               <div className={`flex items-center gap-6 bg-white p-2 rounded-[28px] border-2 border-slate-100 shadow-inner transition-opacity ${isSubmitting ? 'opacity-50 pointer-events-none' : ''}`}>
-                <button 
-                  onClick={() => setQuantity(Math.max(1, parseInt(quantity) - 1).toString())}
-                  disabled={isSubmitting}
-                  className="w-12 h-12 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-600 transition-all active:scale-90"
-                >
-                  <Minus className="w-6 h-6" />
-                </button>
+                <div className="relative group">
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                    数量を減らす
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                  </div>
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, parseInt(quantity) - 1).toString())}
+                    disabled={isSubmitting}
+                    className="w-12 h-12 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-2xl text-slate-600 transition-all active:scale-90"
+                  >
+                    <Minus className="w-6 h-6" />
+                  </button>
+                </div>
                 <div className="flex flex-col items-center px-4">
                   <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">数量</span>
                   <input 
@@ -321,33 +337,44 @@ ${part.id} × ${orderQuantity}
                     className="w-16 text-center text-3xl font-black text-slate-800 bg-transparent focus:outline-none"
                   />
                 </div>
-                <button 
-                  onClick={() => setQuantity((parseInt(quantity) + 1).toString())}
-                  disabled={isSubmitting}
-                  className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-2xl text-white transition-all active:scale-90 shadow-lg shadow-blue-100"
-                >
-                  <Plus className="w-6 h-6" />
-                </button>
+                <div className="relative group">
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-blue-600 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                    数量を増やす
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-600 rotate-45"></div>
+                  </div>
+                  <button 
+                    onClick={() => setQuantity((parseInt(quantity) + 1).toString())}
+                    disabled={isSubmitting}
+                    className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-2xl text-white transition-all active:scale-90 shadow-lg shadow-blue-100"
+                  >
+                    <Plus className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 w-full relative">
                 {(["使用", "入荷", "持出", "返却"] as StockOperation[]).map(op => (
-                  <button
-                    key={op}
-                    onClick={() => handleQuickAction(op)}
-                    disabled={isSubmitting}
-                    className={`flex flex-col items-center justify-center gap-1 py-5 rounded-[24px] text-[14px] font-black transition-all active:scale-95 border-2 ${
-                      op === '使用' ? 'bg-white hover:bg-red-50 text-red-500 border-slate-100 hover:border-red-100' :
-                      op === '入荷' ? 'bg-white hover:bg-green-50 text-green-500 border-slate-100 hover:border-green-100' :
-                      op === '持出' ? 'bg-white hover:bg-blue-50 text-blue-500 border-slate-100 hover:border-blue-100' :
-                      'bg-white hover:bg-slate-50 text-slate-600 border-slate-100'
-                    } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <span>{op}</span>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {op === '使用' ? '出庫する' : op === '入荷' ? '入庫する' : op === '持出' ? '現場へ' : '戻す'}
-                    </span>
-                  </button>
+                  <div key={op} className="relative group">
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                      部品を{op === '使用' ? '使用（在庫減）' : op === '入荷' ? '入荷（在庫増）' : op === '持出' ? '現場持出' : '倉庫返却'}として登録
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                    </div>
+                    <button
+                      onClick={() => handleQuickAction(op)}
+                      disabled={isSubmitting}
+                      className={`w-full flex flex-col items-center justify-center gap-1 py-5 rounded-[24px] text-[14px] font-black transition-all active:scale-95 border-2 ${
+                        op === '使用' ? 'bg-white hover:bg-red-50 text-red-500 border-slate-100 hover:border-red-100' :
+                        op === '入荷' ? 'bg-white hover:bg-green-50 text-green-500 border-slate-100 hover:border-green-100' :
+                        op === '持出' ? 'bg-white hover:bg-blue-50 text-blue-500 border-slate-100 hover:border-blue-100' :
+                        'bg-white hover:bg-slate-50 text-slate-600 border-slate-100'
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <span>{op}</span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {op === '使用' ? '出庫する' : op === '入荷' ? '入庫する' : op === '持出' ? '現場へ' : '戻す'}
+                      </span>
+                    </button>
+                  </div>
                 ))}
 
                 {/* Loading Overlay for the actions area */}
@@ -360,13 +387,19 @@ ${part.id} × ${orderQuantity}
               </div>
 
               {/* Parts Order Button */}
-              <button 
-                onClick={() => setIsOrderOpen(true)}
-                className="w-full flex items-center justify-center space-x-2 py-5 bg-blue-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-blue-100 active:scale-95 transition-all"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span>部品発注依頼 (LINE共有)</span>
-              </button>
+              <div className="relative group w-full">
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-blue-600 text-white text-[12px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                  発注依頼メッセージを生成してLINE等で共有
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-600 rotate-45"></div>
+                </div>
+                <button 
+                  onClick={() => setIsOrderOpen(true)}
+                  className="w-full flex items-center justify-center space-x-2 py-5 bg-blue-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-blue-100 active:scale-95 transition-all"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>部品発注依頼 (LINE共有)</span>
+                </button>
+              </div>
             </div>
 
             {message && (
