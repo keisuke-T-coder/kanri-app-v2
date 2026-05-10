@@ -29,6 +29,9 @@ interface CasesContextType {
   setActiveTab: (tab: CasesTab) => void;
   selectedCase: CaseItem | null;
   setSelectedCase: (item: CaseItem | null) => void;
+  showNotificationAlert: boolean;
+  setShowNotificationAlert: (show: boolean) => void;
+  alertCases: CaseItem[];
   refreshAll: () => Promise<void>;
 }
 
@@ -59,6 +62,7 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
   const [searchStatus, setSearchStatus] = useState<Status | "all">("all");
   const [activeTab, setActiveTab] = useState<CasesTab>("list");
   const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+  const [showNotificationAlert, setShowNotificationAlert] = useState(false);
 
   const fetchedRef = useRef(false);
 
@@ -155,6 +159,16 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       globalIsFirstFetch = false;
       
       setAllCases(newAllCases);
+      
+      // 🥎付き案件のチェック (完了分は除外、重複防止のためpriorityタブは含めない)
+      const alertItems = Object.entries(newAllCases)
+        .filter(([key]) => key !== "priority")
+        .flatMap(([_, cases]) => cases)
+        .filter(item => item.title.includes("🥎") && item.status !== "完了");
+      
+      if (alertItems.length > 0) {
+        setShowNotificationAlert(true);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "データの取得に失敗しました。");
@@ -169,6 +183,33 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       fetchAllData();
     }
   }, [fetchAllData]);
+
+  // アプリ復帰時のチェック
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const alertItems = Object.entries(allCases)
+          .filter(([key]) => key !== "priority")
+          .flatMap(([_, cases]) => cases)
+          .filter(item => item.title.includes("🥎") && item.status !== "完了");
+          
+        if (alertItems.length > 0) {
+          setShowNotificationAlert(true);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [allCases]);
+
+  // 🥎付き案件の抽出 (完了分は除外、重複防止のためpriorityタブは含めない)
+  const alertCases = React.useMemo(() => {
+    return Object.entries(allCases)
+      .filter(([key]) => key !== "priority")
+      .flatMap(([_, cases]) => cases)
+      .filter(item => item.title.includes("🥎") && item.status !== "完了");
+  }, [allCases]);
 
   const updateCaseStatus = useCallback((clientId: string, rowNumber: number, newStatus: Status, completionDate: string) => {
     setAllCases(prev => {
@@ -227,6 +268,8 @@ export function CasesProvider({ children }: { children: React.ReactNode }) {
       searchStatus, setSearchStatus,
       activeTab, setActiveTab,
       selectedCase, setSelectedCase,
+      showNotificationAlert, setShowNotificationAlert,
+      alertCases,
       updateCaseStatus, updateCaseContent, updateCaseFields, 
       refreshAll: fetchAllData 
     }}>

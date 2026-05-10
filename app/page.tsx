@@ -4,16 +4,24 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Wrench, Briefcase } from 'lucide-react';
+import { useCases } from './cases/_context/CasesContext';
 
 export default function Home() {
   const router = useRouter();
   const [selectedWorker, setSelectedWorker] = React.useState<string | null>(null);
 
+  const { alertCases, setShowNotificationAlert } = useCases();
+  
   useEffect(() => {
     // 日報画面で保存されている担当者を取得
     const worker = localStorage.getItem('selectedWorker');
     setSelectedWorker(worker);
-  }, []);
+    
+    // ホーム画面表示時に、🥎付き案件があればアラートを強制表示
+    if (alertCases.length > 0) {
+      setShowNotificationAlert(true);
+    }
+  }, [alertCases, setShowNotificationAlert]);
 
   const handleComingSoon = (e: React.MouseEvent) => {
     e.preventDefault();

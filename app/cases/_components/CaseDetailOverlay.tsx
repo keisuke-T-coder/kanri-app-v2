@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ClientId, Status, CLIENT_TABS } from "../_types/schema";
+import { ClientId, Status, CLIENT_TABS, CaseItem } from "../_types/schema";
 import { ChevronLeft, ChevronRight, MapPin, User, FileText, CheckCircle2, History, Loader2, Mail, Check, Edit2, Save, X, Navigation, Home, Plus, MessageCircle, Share2, Copy } from "lucide-react";
 import { useCases } from "../_context/CasesContext";
 import { CasePartsManager } from "./CasePartsManager";
@@ -170,31 +170,97 @@ export function CaseDetailOverlay({ item, onClose }: CaseDetailOverlayProps) {
     const lines = combinedText.split("\n");
     let entries: { date: string, content: string }[] = [];
     let currentEntry: { date: string, content: string } | null = null;
+    
+    // 日付形式の解析を強化 (M/D, MM/DD, YYYY/M/D などに対応)
+    const datePattern = /(\d{1,4}\/)?\d{1,2}\/\d{1,2}/;
+    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      const dateMatch = line.match(/^[^\d]*(\d{1,2}\/\d{1,2})[>| ]/);
-      if (dateMatch) {
+      
+      const match = line.match(new RegExp(`^[^\\d]*(${datePattern.source})[>| ]`));
+      if (match) {
         if (currentEntry) entries.push(currentEntry);
-        currentEntry = { date: dateMatch[1], content: line.substring(line.search(/\d{1,2}\/\d{1,2}/) + dateMatch[1].length + 1).trim() };
-      } else if (currentEntry) { currentEntry.content += (currentEntry.content ? "\n" : "") + line; }
+        // 日付部分を除去して内容を抽出
+        const dateStr = match[1];
+        const contentPart = line.substring(line.indexOf(dateStr) + dateStr.length).replace(/^[>| ]+/, "").trim();
+        currentEntry = { date: dateStr, content: contentPart };
+      } else if (currentEntry) {
+        currentEntry.content += (currentEntry.content ? "\n" : "") + line;
+      }
     }
     if (currentEntry) entries.push(currentEntry);
+
     const stripSyms = (str: string) => str.replace(/[🥎⭕️📣📢]/g, "").trim();
-    const todayEntry = entries.find(e => e.date === todayKey || e.date === todayKeyFull);
+    
+    // 今日の日付文字列（比較用）
+    const todaySimple = `${now.getMonth() + 1}/${now.getDate()}`;
+    const todayFull = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+    const todayPadded = `${String(now.getMonth() + 1).padStart(2, "0")}/${String(now.getDate()).padStart(2, "0")}`;
+    
+    const todayEntry = entries.find(e => 
+      e.date.includes(todaySimple) || 
+      e.date.includes(todayFull) || 
+      e.date.includes(todayPadded)
+    );
+
     const title = stripSyms(item.title || "");
     const address = stripSyms(item.address || "");
     const assignee = stripSyms(item.assignee || "");
-    const workContent = stripSyms(todayEntry?.content || (entries.length > 0 ? entries[entries.length - 1].content : (item.content || "")));
+    
+    // 作業内容は、今日の分があればそれ、なければ最後の履歴、それもなければcontent
+    let workContent = stripSyms(todayEntry?.content || (entries.length > 0 ? entries[entries.length - 1].content : (item.content || "")));
+    
     let photoUrl = (item.rawData?.["Googleフォト"] || item.rawData?.["URL"] || "").trim();
-    if (!photoUrl) { const urlMatch = combinedText.match(/https:\/\/photos\.app\.goo\.gl\/[a-zA-Z0-9]+/); if (urlMatch) photoUrl = urlMatch[0]; }
-    const emailText = `▪️様(担当 ${assignee})${item.status}\n住所:${address}\n物件名:${title}\n作業日時:${todayStr}\n作業内容:${workContent}\n作業状況:画像\n${photoUrl}\n`;
-    navigator.clipboard.writeText(emailText);
+    if (!photoUrl) {
+      const urlMatch = combinedText.match(/https:\/\/photos\.app\.goo\.gl\/[a-zA-Z0-9]+/);
+      if (urlMatch) photoUrl = urlMatch[0];
+    }
+
+    const emailBodyTemplate = (content: string) => 
+      `▪️様(担当 ${assignee})${item.status}\n住所:${address}\n物件名:${title}\n作業日時:${todayStr}\n作業内容:${content}\n作業状況:画像\n${photoUrl}\n`;
+
+    const fullEmailText = emailBodyTemplate(workContent);
+    
+    // クリップボードには常に全文化された内容を保存
+    navigator.clipboard.writeText(fullEmailText);
     setMailCopied(true);
     setTimeout(() => setMailCopied(false), 2000);
+
     const recipient = "takeyoshi2008@hotmail.co.jp";
     const subject = `【報告】${title}様 (${item.status})`;
-    window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailText)}`;
+
+    try {
+      const safeSubject = typeof subject.toWellFormed === "function" ? subject.toWellFormed() : subject;
+      const safeBody = typeof fullEmailText.toWellFormed === "function" ? fullEmailText.toWellFormed() : fullEmailText;
+      
+      let mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent(safeBody)}`;
+      
+      // iOS Mail等の制限（約2000-3000文字）を考慮
+      if (mailtoUrl.length > 2500) {
+        // 長すぎる場合は作業内容を切り詰める (末尾から1000文字程度に制限)
+        const truncatedWorkContent = workContent.length > 1000 
+          ? "...\n" + workContent.substring(workContent.length - 1000) 
+          : workContent;
+        
+        const truncatedBody = emailBodyTemplate(truncatedWorkContent);
+        const safeTruncatedBody = typeof truncatedBody.toWellFormed === "function" ? truncatedBody.toWellFormed() : truncatedBody;
+        
+        mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent(safeTruncatedBody)}`;
+        
+        // それでも長い場合は、最終手段として固定文面
+        if (mailtoUrl.length > 3000) {
+          window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(safeSubject)}&body=${encodeURIComponent("報告内容が長いため、クリップボードの内容を貼り付けて送信してください。")}`;
+        } else {
+          window.location.href = mailtoUrl;
+        }
+      } else {
+        window.location.href = mailtoUrl;
+      }
+    } catch (err) {
+      console.error("Mailto generation failed:", err);
+      alert("メールアプリの起動に失敗しました。本文はコピーされています。");
+    }
   };
 
   const buildCaseShareText = () => {

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useInventory } from "../_context/InventoryContext";
 import { StockOperation, CaseType } from "../_types/schema";
 import { CheckCircle2, AlertCircle, Package, User, Hash, Search, ArrowRight, Briefcase, Loader2 } from "lucide-react";
-import { useCases, CaseItem } from "../../cases/_context/CasesContext";
+import { useCases } from "../../cases/_context/CasesContext";
+import { CaseItem } from "../../cases/_types/schema";
 
 export function StockEntry() {
   const { parts, addHistory } = useInventory();
